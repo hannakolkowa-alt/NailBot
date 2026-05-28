@@ -29,7 +29,14 @@ if (string.IsNullOrWhiteSpace(botToken))
     return;
 }
 
-await SupabaseConfig.InitializeAsync(supabaseUrl, supabaseKey);
+try
+{
+    await SupabaseConfig.InitializeAsync(supabaseUrl, supabaseKey);
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Предупреждение: Supabase недоступен ({ex.Message}). Бот всё равно запустится.");
+}
 
 builder.Services.AddSingleton<ITelegramBotClient>(_ => new TelegramBotClient(botToken));
 builder.Services.ConfigureTelegramBot<JsonOptions>(opt => opt.SerializerOptions);
@@ -61,7 +68,9 @@ if (useWebhook)
 {
     var webhookUrl = $"{webhookBase.TrimEnd('/')}/bot/webhook";
     await bot.SetWebhook(webhookUrl, allowedUpdates: []);
+    var webhookInfo = await bot.GetWebhookInfo();
     Console.WriteLine($"Webhook установлен: {webhookUrl}");
+    Console.WriteLine($"Webhook status: {webhookInfo.Url}, pending: {webhookInfo.PendingUpdateCount}, last error: {webhookInfo.LastErrorMessage ?? "нет"}");
 }
 else
 {

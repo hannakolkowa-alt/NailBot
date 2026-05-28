@@ -33,6 +33,11 @@ namespace TelegramBot.Handlers
                     else
                         await botClient.SendMessage(chatId, "Доступ запрещен.", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
                     break;
+
+                default:
+                    if (command.StartsWith('/'))
+                        await botClient.SendMessage(chatId, "Неизвестная команда. Нажмите /start", replyMarkup: keyboard, cancellationToken: ct);
+                    break;
             }
         }
     }

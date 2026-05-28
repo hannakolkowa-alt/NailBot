@@ -18,7 +18,7 @@ namespace TelegramBot.Handlers
 
             long chatId = message.Chat.Id;
             bool isAdmin = message.From?.Id == ADMIN_USER_ID;
-            string command = text.ToLowerInvariant();
+            string command = NormalizeCommand(text);
 
             Console.WriteLine($"Получено от {chatId}: {text}");
 
@@ -44,6 +44,16 @@ namespace TelegramBot.Handlers
         {
             Console.WriteLine($"Ошибка Telegram API:\n{exception.Message}");
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// /start и /start@BotName и /start параметр → /start
+        /// </summary>
+        private static string NormalizeCommand(string text)
+        {
+            var part = text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
+            var atIndex = part.IndexOf('@');
+            return atIndex > 0 ? part[..atIndex] : part;
         }
     }
 }
