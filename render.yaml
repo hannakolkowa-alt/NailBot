@@ -1,0 +1,16 @@
+# Blueprint для Render: https://render.com/docs/blueprint-spec
+# Тип worker — для Telegram-бота с long polling (не нужен HTTP-порт).
+services:
+  - type: worker
+    name: nails-telegram-bot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: TelegramBotToken
+        sync: false
+      - key: SupabaseUrl
+        sync: false
+      - key: SupabaseKey
+        sync: false
