@@ -17,11 +17,14 @@ namespace TelegramBot.Handlers
             switch (command)
             {
                 case "/start":
+                    await botClient.SendMessage(chatId, "Привет Аня", replyMarkup: keyboard, cancellationToken: ct);
+                    break;
+
                 case "/menu":
-                    string welcomeText = isAdmin
+                    string menuText = isAdmin
                         ? "Привет! ✨\n\nАдмин-панель открыта:"
                         : "Добро пожаловать в Nails Studio! 💅✨\n\nВыберите пункт меню:";
-                    await botClient.SendMessage(chatId, welcomeText, replyMarkup: keyboard, cancellationToken: ct);
+                    await botClient.SendMessage(chatId, menuText, replyMarkup: keyboard, cancellationToken: ct);
                     break;
 
                 case "/admin":
