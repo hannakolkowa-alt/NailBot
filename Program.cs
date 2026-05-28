@@ -1,87 +1,97 @@
-using Microsoft.Extensions.Configuration;
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http.Json;
 using Telegram.Bot;
+using Telegram.Bot.AspNetCore;
 using Telegram.Bot.Polling;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using TelegramBot.Services;
 using TelegramBot.Handlers;
+using TelegramBot.Services;
 
-namespace TelegramBot
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
+var supabaseUrl = builder.Configuration["SupabaseUrl"];
+var supabaseKey = builder.Configuration["SupabaseKey"];
+var botToken = builder.Configuration["TelegramBotToken"];
+
+if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(supabaseKey))
 {
-    class Program
-    {
-        private static ITelegramBotClient _botClient;
-
-        static async Task Main(string[] args)
-        {
-            // 1. Конфиг: локально — appsettings.json, на Render — переменные окружения
-            var config = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .AddEnvironmentVariables()
-                .Build();
-
-            var supabaseUrl = config["SupabaseUrl"];
-            var supabaseKey = config["SupabaseKey"];
-            var botToken = config["TelegramBotToken"];
-
-            if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(supabaseKey))
-            {
-                Console.WriteLine("Ошибка: задайте SupabaseUrl и SupabaseKey (appsettings.json или переменные окружения).");
-                return;
-            }
-
-            // 2. Инициализация БД
-            await SupabaseConfig.InitializeAsync(supabaseUrl, supabaseKey);
-
-            // 3. Запуск бота
-            if (string.IsNullOrWhiteSpace(botToken))
-            {
-                Console.WriteLine("Ошибка: задайте TelegramBotToken (appsettings.json или переменную окружения).");
-                return;
-            }
-
-            _botClient = new TelegramBotClient(botToken);
-
-            try
-            {
-                var me = await _botClient.GetMe();
-                Console.WriteLine($"Бот запущен! Имя: @{me.Username} | ID: {me.Id}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ошибка запуска: {ex.Message}");
-                return;
-            }
-
-            using var cts = new CancellationTokenSource();
-            Console.CancelKeyPress += (_, e) =>
-            {
-                e.Cancel = true;
-                cts.Cancel();
-            };
-
-            var receiverOptions = new ReceiverOptions { AllowedUpdates = Array.Empty<UpdateType>() };
-
-            _botClient.StartReceiving(
-                BotUpdateHandler.HandleUpdateAsync,
-                BotUpdateHandler.HandleErrorAsync,
-                receiverOptions,
-                cancellationToken: cts.Token
-            );
-
-            Console.WriteLine("Бот работает. Ожидание сообщений...");
-            try
-            {
-                await Task.Delay(Timeout.Infinite, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("Остановка бота.");
-            }
-        }
-    }
+    Console.WriteLine("Ошибка: задайте SupabaseUrl и SupabaseKey.");
+    return;
 }
+
+if (string.IsNullOrWhiteSpace(botToken))
+{
+    Console.WriteLine("Ошибка: задайте TelegramBotToken.");
+    return;
+}
+
+await SupabaseConfig.InitializeAsync(supabaseUrl, supabaseKey);
+
+builder.Services.AddSingleton<ITelegramBotClient>(_ => new TelegramBotClient(botToken));
+builder.Services.ConfigureTelegramBot<JsonOptions>(opt => opt.SerializerOptions);
+
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+var app = builder.Build();
+var bot = app.Services.GetRequiredService<ITelegramBotClient>();
+
+try
+{
+    var me = await bot.GetMe();
+    Console.WriteLine($"Бот запущен: @{me.Username} | ID: {me.Id}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Ошибка Telegram API: {ex.Message}");
+    return;
+}
+
+// На Render free: RENDER_EXTERNAL_URL задаётся автоматически → webhook
+// Локально без URL — long polling (для разработки)
+var webhookBase = builder.Configuration["RENDER_EXTERNAL_URL"]
+    ?? builder.Configuration["WebhookUrl"];
+var useWebhook = !string.IsNullOrWhiteSpace(webhookBase);
+
+if (useWebhook)
+{
+    var webhookUrl = $"{webhookBase.TrimEnd('/')}/bot/webhook";
+    await bot.SetWebhook(webhookUrl, allowedUpdates: []);
+    Console.WriteLine($"Webhook установлен: {webhookUrl}");
+}
+else
+{
+    await bot.DeleteWebhook(dropPendingUpdates: true);
+    bot.StartReceiving(
+        BotUpdateHandler.HandleUpdateAsync,
+        BotUpdateHandler.HandleErrorAsync,
+        new ReceiverOptions { AllowedUpdates = Array.Empty<UpdateType>() });
+    Console.WriteLine("Локальный режим: long polling (не запускайте одновременно с Render).");
+}
+
+app.MapGet("/", () => Results.Ok("Telegram bot is running"));
+app.MapGet("/health", () => Results.Ok("ok"));
+
+if (useWebhook)
+{
+    app.MapPost("/bot/webhook", async (Update update, ITelegramBotClient botClient, CancellationToken ct) =>
+    {
+        try
+        {
+            await BotUpdateHandler.HandleUpdateAsync(botClient, update, ct);
+        }
+        catch (Exception ex)
+        {
+            await BotUpdateHandler.HandleErrorAsync(botClient, ex, ct);
+        }
+
+        return Results.Ok();
+    });
+}
+
+Console.WriteLine($"HTTP-сервер слушает порт {port}");
+app.Run();

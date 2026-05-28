@@ -7,11 +7,13 @@ RUN dotnet restore
 COPY . .
 RUN dotnet publish TelegramBot.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/runtime:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
 COPY --from=build /app/publish .
 
-ENV DOTNET_ENVIRONMENT=Production
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+EXPOSE 10000
 
 ENTRYPOINT ["dotnet", "TelegramBot.dll"]
