@@ -13,9 +13,19 @@ builder.Configuration
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-var supabaseUrl = builder.Configuration["SupabaseUrl"];
-var supabaseKey = builder.Configuration["SupabaseKey"];
-var botToken = builder.Configuration["TelegramBotToken"];
+var supabaseUrl = builder.Configuration["SupabaseUrl"]?.Trim();
+var supabaseKey = builder.Configuration["SupabaseKey"]?.Trim();
+var botToken = builder.Configuration["TelegramBotToken"]?.Trim();
+
+if (supabaseUrl?.EndsWith(".supabase.com", StringComparison.OrdinalIgnoreCase) == true)
+{
+    Console.WriteLine("⚠️ SupabaseUrl должен заканчиваться на .supabase.co (не .com)");
+}
+
+if (supabaseKey?.StartsWith("sb_publishable_", StringComparison.Ordinal) == true)
+{
+    Console.WriteLine("⚠️ SupabaseKey: для сервера нужен sb_secret_... или service_role (JWT), не publishable");
+}
 
 if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(supabaseKey))
 {
