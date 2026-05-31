@@ -2,6 +2,7 @@ using Telegram.Bot;
 using Telegram.Bot.AspNetCore;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
+using TelegramBot;
 using TelegramBot.Data;
 using TelegramBot.Handlers;
 using TelegramBot.Helpers;
@@ -38,6 +39,9 @@ if (string.IsNullOrWhiteSpace(botToken))
     Console.WriteLine("Ошибка: задайте TelegramBotToken.");
     return;
 }
+
+BotConfig.Configure(ParseMasterTelegramIds(builder.Configuration));
+Console.WriteLine($"Мастер(а) Telegram ID: {string.Join(", ", BotConfig.MasterTelegramIds)}");
 
 try
 {
@@ -130,3 +134,17 @@ if (useWebhook)
 
 Console.WriteLine($"HTTP-сервер слушает порт {port}");
 app.Run();
+
+static IEnumerable<long> ParseMasterTelegramIds(IConfiguration config)
+{
+    var raw = config["MasterTelegramId"]
+        ?? config["MasterTelegramIds"]
+        ?? config["AdminTelegramId"];
+
+    if (string.IsNullOrWhiteSpace(raw))
+        return new[] { 5783971965L };
+
+    return raw.Split(',', ';', ' ', '\n', '\r')
+        .Select(part => long.TryParse(part.Trim(), out var id) ? id : 0)
+        .Where(id => id > 0);
+}

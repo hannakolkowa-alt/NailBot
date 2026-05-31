@@ -33,7 +33,7 @@ namespace TelegramBot.Handlers
                 {
                     SessionStore.Reset(chatId);
                     await CommandHandler.HandleAsync(
-                        botClient, chatId, NormalizeCommand(text), isAdmin,
+                        botClient, chatId, userId, NormalizeCommand(text), isAdmin,
                         message.From?.FirstName, message.From?.Username, ct);
                     return;
                 }

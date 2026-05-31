@@ -15,6 +15,7 @@ namespace TelegramBot.Handlers
         public static async Task HandleAsync(
             ITelegramBotClient botClient,
             long chatId,
+            long userId,
             string command,
             bool isAdmin,
             string? firstName,
@@ -38,11 +39,21 @@ namespace TelegramBot.Handlers
                     await botClient.SendMessage(chatId, menuText, replyMarkup: keyboard, cancellationToken: ct);
                     break;
 
+                case "/myid":
+                    await botClient.SendMessage(chatId,
+                        $"Ваш Telegram ID: {userId}\n\nДля /master на Render → Environment:\nMasterTelegramId = {userId}",
+                        cancellationToken: ct);
+                    break;
+
                 case "/master":
                 case "/admin":
                     if (!isAdmin)
                     {
-                        await botClient.SendMessage(chatId, "Доступ только для мастера.", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                        await botClient.SendMessage(chatId,
+                            $"Доступ только для мастера.\n\nВаш ID: {userId}\n" +
+                            $"Отправьте /myid и добавьте этот номер в Render → Environment → MasterTelegramId",
+                            replyMarkup: Keyboards.CreateMainMenuKeyboard(),
+                            cancellationToken: ct);
                         break;
                     }
 

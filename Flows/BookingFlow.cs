@@ -201,7 +201,7 @@ namespace TelegramBot.Flows
 
             try
             {
-                await bot.SendMessage(BotConfig.AdminTelegramId,
+                await bot.SendMessage(BotConfig.PrimaryMasterTelegramId,
                     "📩 Новая заявка на запись! Откройте раздел «Заявки».",
                     cancellationToken: ct);
             }

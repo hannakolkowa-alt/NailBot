@@ -36,7 +36,7 @@ namespace TelegramBot.Handlers
                         await RequestService.UpdateRequestStatusAsync(session.TargetRequestId.Value, RequestStatus.Cancelled, $"Отмена клиентом: {text}");
                         try
                         {
-                            await bot.SendMessage(BotConfig.AdminTelegramId,
+                            await bot.SendMessage(BotConfig.PrimaryMasterTelegramId,
                                 $"❌ Клиент отменил запись.\nПричина: {text}", cancellationToken: ct);
                         }
                         catch { }
@@ -52,7 +52,7 @@ namespace TelegramBot.Handlers
                     await bot.SendMessage(chatId, "Спасибо за отзыв! ⭐", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
                     try
                     {
-                        await bot.SendMessage(BotConfig.AdminTelegramId, $"⭐ Новый отзыв от @{client.TelegramUsername}:\n{text}", cancellationToken: ct);
+                        await bot.SendMessage(BotConfig.PrimaryMasterTelegramId, $"⭐ Новый отзыв от @{client.TelegramUsername}:\n{text}", cancellationToken: ct);
                     }
                     catch { }
                     return true;
