@@ -6,7 +6,7 @@ namespace TelegramBot.Services
     {
         public static async Task<Client?> GetByTelegramIdAsync(long telegramId)
         {
-            var res = await SupabaseConfig.Client.From<Client>().Where(c => c.TelegramId == telegramId).Get();
+            var res = await SupabaseConfig.GetClient().From<Client>().Where(c => c.TelegramId == telegramId).Get();
             return res.Models?.FirstOrDefault();
         }
 
@@ -22,19 +22,19 @@ namespace TelegramBot.Services
                 FirstName = firstName ?? "Клиент",
                 TelegramUsername = username ?? ""
             };
-            var res = await SupabaseConfig.Client.From<Client>().Insert(client);
+            var res = await SupabaseConfig.GetClient().From<Client>().Insert(client);
             return res.Models!.First();
         }
 
         public static async Task<List<Client>> GetAllClientsAsync()
         {
-            var res = await SupabaseConfig.Client.From<Client>().Get();
+            var res = await SupabaseConfig.GetClient().From<Client>().Get();
             return res.Models ?? new List<Client>();
         }
 
         public static async Task<bool> DeleteClientAsync(Guid clientId)
         {
-            await SupabaseConfig.Client.From<Client>().Where(c => c.ClientId == clientId).Delete();
+            await SupabaseConfig.GetClient().From<Client>().Where(c => c.ClientId == clientId).Delete();
             return true;
         }
 

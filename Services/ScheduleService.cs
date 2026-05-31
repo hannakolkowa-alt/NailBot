@@ -6,7 +6,7 @@ namespace TelegramBot.Services
     {
         public static async Task<List<WorkingDate>> GetWorkingDatesAsync(DateOnly from, DateOnly to)
         {
-            var response = await SupabaseConfig.Client.From<WorkingDate>().Get();
+            var response = await SupabaseConfig.GetClient().From<WorkingDate>().Get();
             return (response.Models ?? new List<WorkingDate>())
                 .Where(d => d.Date >= from && d.Date <= to)
                 .OrderBy(d => d.Date)
@@ -15,7 +15,7 @@ namespace TelegramBot.Services
 
         public static async Task<List<TimeSlot>> GetFreeSlotsAsync(Guid workingDateId)
         {
-            var slots = await SupabaseConfig.Client
+            var slots = await SupabaseConfig.GetClient()
                 .From<TimeSlot>()
                 .Where(s => s.WorkingDateId == workingDateId)
                 .Get();
@@ -30,7 +30,7 @@ namespace TelegramBot.Services
 
         public static async Task<HashSet<Guid>> GetBookedSlotIdsAsync(Guid workingDateId)
         {
-            var appts = await SupabaseConfig.Client
+            var appts = await SupabaseConfig.GetClient()
                 .From<Appointment>()
                 .Where(a => a.WorkingDateId == workingDateId)
                 .Get();
@@ -45,7 +45,7 @@ namespace TelegramBot.Services
 
         public static async Task<WorkingDate?> AddWorkingDateAsync(Guid masterId, DateOnly date)
         {
-            var existing = await SupabaseConfig.Client
+            var existing = await SupabaseConfig.GetClient()
                 .From<WorkingDate>()
                 .Where(w => w.MasterId == masterId && w.Date == date)
                 .Get();
@@ -54,7 +54,7 @@ namespace TelegramBot.Services
                 return existing.Models.First();
 
             var wd = new WorkingDate { DateId = Guid.NewGuid(), MasterId = masterId, Date = date };
-            var res = await SupabaseConfig.Client.From<WorkingDate>().Insert(wd);
+            var res = await SupabaseConfig.GetClient().From<WorkingDate>().Insert(wd);
             return res.Models?.FirstOrDefault();
         }
 
@@ -67,7 +67,7 @@ namespace TelegramBot.Services
                 Time = time,
                 IsBooked = false
             };
-            var res = await SupabaseConfig.Client.From<TimeSlot>().Insert(slot);
+            var res = await SupabaseConfig.GetClient().From<TimeSlot>().Insert(slot);
             return res.Models?.FirstOrDefault();
         }
 

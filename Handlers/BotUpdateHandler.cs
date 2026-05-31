@@ -1,6 +1,7 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Types;
 using TelegramBot;
+using TelegramBot.Helpers;
 using TelegramBot.State;
 using TelegramBot.UI;
 
@@ -38,6 +39,12 @@ namespace TelegramBot.Handlers
                 if (MenuTexts.IsMenuButton(normalized))
                 {
                     SessionStore.Reset(chatId);
+                    if (MenuTexts.IsClientOnlyButton(normalized))
+                    {
+                        await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
+                        return;
+                    }
+
                     if (isAdmin)
                         await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
                     else
@@ -56,13 +63,27 @@ namespace TelegramBot.Handlers
             catch (Exception ex)
             {
                 Console.WriteLine($"HandleUpdate error: {ex}");
-                await HandleErrorAsync(botClient, ex, ct);
+                var chatId = update.CallbackQuery?.Message?.Chat.Id
+                    ?? update.Message?.Chat.Id;
+                if (chatId.HasValue)
+                    await BotMessenger.NotifyErrorAsync(botClient, chatId.Value, ex, ct);
             }
         }
 
-        public static async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)
+        public static Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)
         {
-            Console.WriteLine($"Ошибка Telegram API:\n{exception}");
+            Console.WriteLine($"Polling error: {exception}");
+            return Task.CompletedTask;
+        }
+
+        public static async Task HandleErrorAsync(ITelegramBotClient botClient, Update update, Exception exception, CancellationToken ct)
+        {
+            Console.WriteLine($"Ошибка обработки update:\n{exception}");
+            var chatId = update.CallbackQuery?.Message?.Chat.Id
+                ?? update.Message?.Chat.Id
+                ?? update.CallbackQuery?.From.Id;
+            if (chatId.HasValue)
+                await BotMessenger.NotifyErrorAsync(botClient, chatId.Value, exception, ct);
         }
 
         private static string NormalizeCommand(string text)

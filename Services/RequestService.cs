@@ -7,7 +7,7 @@ namespace TelegramBot.Services
     {
         public static async Task<List<Request>> GetPendingRequestsAsync()
         {
-            var response = await SupabaseConfig.Client.From<Request>().Get();
+            var response = await SupabaseConfig.GetClient().From<Request>().Get();
             return (response.Models ?? new List<Request>())
                 .Where(r => r.Status == RequestStatus.Pending)
                 .OrderByDescending(r => r.CreatedAt)
@@ -19,7 +19,7 @@ namespace TelegramBot.Services
             var client = await ClientService.GetByTelegramIdAsync(telegramId);
             if (client == null) return new List<Request>();
 
-            var res = await SupabaseConfig.Client.From<Request>().Where(r => r.ClientId == client.ClientId).Get();
+            var res = await SupabaseConfig.GetClient().From<Request>().Where(r => r.ClientId == client.ClientId).Get();
             return (res.Models ?? new List<Request>())
                 .Where(r => r.Status is RequestStatus.Pending or RequestStatus.Approved)
                 .OrderByDescending(r => r.CreatedAt)
@@ -28,7 +28,7 @@ namespace TelegramBot.Services
 
         public static async Task<Request?> GetByIdAsync(Guid requestId)
         {
-            var res = await SupabaseConfig.Client.From<Request>().Where(r => r.RequestId == requestId).Get();
+            var res = await SupabaseConfig.GetClient().From<Request>().Where(r => r.RequestId == requestId).Get();
             return res.Models?.FirstOrDefault();
         }
 
@@ -38,7 +38,7 @@ namespace TelegramBot.Services
             {
                 if (comment != null)
                 {
-                    var res = await SupabaseConfig.Client
+                    var res = await SupabaseConfig.GetClient()
                         .From<Request>()
                         .Where(r => r.RequestId == requestId)
                         .Set(r => r.Status, newStatus)
@@ -47,7 +47,7 @@ namespace TelegramBot.Services
                     return res.Models?.Count > 0;
                 }
 
-                var response = await SupabaseConfig.Client
+                var response = await SupabaseConfig.GetClient()
                     .From<Request>()
                     .Where(r => r.RequestId == requestId)
                     .Set(r => r.Status, newStatus)
@@ -83,19 +83,19 @@ namespace TelegramBot.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                var requestResponse = await SupabaseConfig.Client.From<Request>().Insert(newRequest);
+                var requestResponse = await SupabaseConfig.GetClient().From<Request>().Insert(newRequest);
                 var createdRequest = requestResponse.Models?.FirstOrDefault();
                 if (createdRequest == null) return null;
 
                 foreach (var serviceId in serviceIds)
                 {
                     var item = new RequestItem { RequestId = createdRequest.RequestId, ServiceId = serviceId, Quantity = 1 };
-                    await SupabaseConfig.Client.From<RequestItem>().Insert(item);
+                    await SupabaseConfig.GetClient().From<RequestItem>().Insert(item);
                 }
 
                 if (timeSlotId.HasValue)
                 {
-                    await SupabaseConfig.Client
+                    await SupabaseConfig.GetClient()
                         .From<TimeSlot>()
                         .Where(s => s.TimeSlotId == timeSlotId.Value)
                         .Set(s => s.IsBooked, true)
@@ -113,8 +113,8 @@ namespace TelegramBot.Services
 
         public static async Task<bool> DeleteRequestAsync(Guid requestId)
         {
-            await SupabaseConfig.Client.From<RequestItem>().Where(ri => ri.RequestId == requestId).Delete();
-            await SupabaseConfig.Client.From<Request>().Where(r => r.RequestId == requestId).Delete();
+            await SupabaseConfig.GetClient().From<RequestItem>().Where(ri => ri.RequestId == requestId).Delete();
+            await SupabaseConfig.GetClient().From<Request>().Where(r => r.RequestId == requestId).Delete();
             return true;
         }
 

@@ -8,7 +8,7 @@ namespace TelegramBot.Services
 
         public static async Task<List<ServiceCategory>> GetCategoriesAsync()
         {
-            var res = await SupabaseConfig.Client.From<ServiceCategory>().Get();
+            var res = await SupabaseConfig.GetClient().From<ServiceCategory>().Get();
             return (res.Models ?? new List<ServiceCategory>())
                 .OrderBy(c => c.Name == AdditionalCategoryName ? 1 : 0)
                 .ThenBy(c => c.Name)
@@ -17,7 +17,7 @@ namespace TelegramBot.Services
 
         public static async Task<List<Service>> GetAllServicesAsync()
         {
-            var response = await SupabaseConfig.Client.From<Service>().Get();
+            var response = await SupabaseConfig.GetClient().From<Service>().Get();
             return response.Models ?? new List<Service>();
         }
 
@@ -54,7 +54,7 @@ namespace TelegramBot.Services
 
         public static async Task<List<Service>> GetRequestServicesAsync(Guid requestId)
         {
-            var items = await SupabaseConfig.Client.From<RequestItem>().Where(ri => ri.RequestId == requestId).Get();
+            var items = await SupabaseConfig.GetClient().From<RequestItem>().Where(ri => ri.RequestId == requestId).Get();
             if (!items.Models.Any()) return new List<Service>();
 
             var serviceIds = items.Models.Select(i => i.ServiceId).ToList();
@@ -72,7 +72,7 @@ namespace TelegramBot.Services
         public static async Task<ServiceCategory?> AddCategoryAsync(string name)
         {
             var cat = new ServiceCategory { CategoryId = Guid.NewGuid(), Name = name };
-            var res = await SupabaseConfig.Client.From<ServiceCategory>().Insert(cat);
+            var res = await SupabaseConfig.GetClient().From<ServiceCategory>().Insert(cat);
             return res.Models?.FirstOrDefault();
         }
 
@@ -87,7 +87,7 @@ namespace TelegramBot.Services
                 DurationMinutes = duration,
                 Price = price
             };
-            var res = await SupabaseConfig.Client.From<Service>().Insert(svc);
+            var res = await SupabaseConfig.GetClient().From<Service>().Insert(svc);
             return res.Models?.FirstOrDefault();
         }
 

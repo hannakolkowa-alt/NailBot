@@ -10,7 +10,15 @@ namespace TelegramBot.Services
     /// </summary>
     public static class SupabaseConfig
     {
-        public static Supabase.Client Client { get; private set; }
+        public static Supabase.Client? Client { get; private set; }
+        public static bool IsReady => Client != null;
+
+        public static Supabase.Client GetClient()
+        {
+            if (Client == null)
+                throw new InvalidOperationException("Supabase не инициализирован. Проверьте ключи на Render.");
+            return Client;
+        }
 
         public static async Task InitializeAsync(string url, string key)
         {

@@ -20,7 +20,7 @@ namespace TelegramBot.Services
         {
             try
             {
-                var response = await SupabaseConfig.Client
+                var response = await SupabaseConfig.GetClient()
                     .From<Gallery>()
                     .Where(g => g.MasterId == masterId)
                     .Get();
@@ -53,7 +53,7 @@ namespace TelegramBot.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                var response = await SupabaseConfig.Client.From<Gallery>().Insert(photo);
+                var response = await SupabaseConfig.GetClient().From<Gallery>().Insert(photo);
                 return response.Models.Count > 0;
             }
             catch (Exception ex)
@@ -74,7 +74,7 @@ namespace TelegramBot.Services
             {
                 // 1. Делаем запрос на удаление. В Postgrest фильтрация идет через лямбду, 
                 // но метод Delete() должен вызываться в конце этой цепочки.
-                await SupabaseConfig.Client
+                await SupabaseConfig.GetClient()
                     .From<Gallery>()
                     .Where(g => g.PhotoId == photoId)
                     .Delete();

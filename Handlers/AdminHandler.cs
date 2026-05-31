@@ -158,7 +158,7 @@ namespace TelegramBot.Handlers
             var session = SessionStore.GetOrCreate(chatId);
             session.CachedAppointmentIds = appts.Select(a => a.AppointmentId).ToList();
             var clients = await ClientService.GetAllClientsAsync();
-            var requests = await SupabaseConfig.Client.From<Models.Request>().Get();
+            var requests = await SupabaseConfig.GetClient().From<Models.Request>().Get();
 
             if (!appts.Any())
             {

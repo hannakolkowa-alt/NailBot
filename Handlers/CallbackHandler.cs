@@ -256,7 +256,7 @@ namespace TelegramBot.Handlers
         private static async Task MarkAppointmentDoneAsync(ITelegramBotClient bot, long adminChatId, Guid appointmentId, CancellationToken ct)
         {
             await AppointmentService.MarkCompletedAsync(appointmentId);
-            var all = await SupabaseConfig.Client.From<Models.Appointment>().Get();
+            var all = await SupabaseConfig.GetClient().From<Models.Appointment>().Get();
             var apt = (all.Models ?? new List<Models.Appointment>()).FirstOrDefault(a => a.AppointmentId == appointmentId);
             if (apt == null) return;
 

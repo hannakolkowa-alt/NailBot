@@ -6,7 +6,7 @@ namespace TelegramBot.Services
     {
         public static async Task<List<Review>> GetAllAsync()
         {
-            var res = await SupabaseConfig.Client.From<Review>().Get();
+            var res = await SupabaseConfig.GetClient().From<Review>().Get();
             return res.Models ?? new List<Review>();
         }
 
@@ -19,13 +19,13 @@ namespace TelegramBot.Services
                 AppointmentId = appointmentId,
                 Text = text
             };
-            var res = await SupabaseConfig.Client.From<Review>().Insert(review);
+            var res = await SupabaseConfig.GetClient().From<Review>().Insert(review);
             return res.Models?.Count > 0;
         }
 
         public static async Task<bool> HasReviewForAppointmentAsync(Guid appointmentId)
         {
-            var res = await SupabaseConfig.Client
+            var res = await SupabaseConfig.GetClient()
                 .From<Review>()
                 .Where(r => r.AppointmentId == appointmentId)
                 .Get();

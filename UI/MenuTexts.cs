@@ -14,6 +14,14 @@ namespace TelegramBot.UI
             "услуги", "расписание", "отзывы", "галерея", "прайс", "график"
         };
 
+        /// <summary>Кнопки только клиентского меню — для админа тоже идут в ClientHandler.</summary>
+        public static readonly HashSet<string> ClientOnlyMenu = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "о мастере", "галерея", "прайс", "график", "записаться", "мои записи"
+        };
+
+        public static bool IsClientOnlyButton(string text) => ClientOnlyMenu.Contains(text.Trim().ToLowerInvariant());
+
         public static readonly HashSet<string> CancelMenu = new(StringComparer.OrdinalIgnoreCase)
         {
             "отмена", "меню", "◀️ меню", "в меню", "/menu", "/start"

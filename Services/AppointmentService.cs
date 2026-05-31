@@ -7,7 +7,7 @@ namespace TelegramBot.Services
     {
         public static async Task<List<Appointment>> GetActiveAppointmentsAsync()
         {
-            var res = await SupabaseConfig.Client.From<Appointment>().Get();
+            var res = await SupabaseConfig.GetClient().From<Appointment>().Get();
             return (res.Models ?? new List<Appointment>())
                 .Where(a => a.Status == AppointmentStatus.Confirmed)
                 .ToList();
@@ -18,7 +18,7 @@ namespace TelegramBot.Services
             var client = await ClientService.GetByTelegramIdAsync(telegramId);
             if (client == null) return new List<Appointment>();
 
-            var res = await SupabaseConfig.Client
+            var res = await SupabaseConfig.GetClient()
                 .From<Appointment>()
                 .Where(a => a.ClientId == client.ClientId)
                 .Get();
@@ -40,13 +40,13 @@ namespace TelegramBot.Services
                 TimeSlotId = timeSlotId,
                 Status = AppointmentStatus.Confirmed
             };
-            var res = await SupabaseConfig.Client.From<Appointment>().Insert(appt);
+            var res = await SupabaseConfig.GetClient().From<Appointment>().Insert(appt);
             return res.Models?.FirstOrDefault();
         }
 
         public static async Task<bool> MarkCompletedAsync(Guid appointmentId)
         {
-            var res = await SupabaseConfig.Client
+            var res = await SupabaseConfig.GetClient()
                 .From<Appointment>()
                 .Where(a => a.AppointmentId == appointmentId)
                 .Set(a => a.Status, AppointmentStatus.Completed)
@@ -56,7 +56,7 @@ namespace TelegramBot.Services
 
         public static async Task<bool> CancelAsync(Guid appointmentId)
         {
-            var res = await SupabaseConfig.Client
+            var res = await SupabaseConfig.GetClient()
                 .From<Appointment>()
                 .Where(a => a.AppointmentId == appointmentId)
                 .Set(a => a.Status, AppointmentStatus.Cancelled)

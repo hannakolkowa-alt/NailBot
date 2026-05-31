@@ -1,11 +1,10 @@
-using Microsoft.AspNetCore.Http.Json;
 using Telegram.Bot;
 using Telegram.Bot.AspNetCore;
 using Telegram.Bot.Polling;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramBot.Data;
 using TelegramBot.Handlers;
+using TelegramBot.Helpers;
 using TelegramBot.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,10 +48,11 @@ catch (Exception ex)
 }
 
 builder.Services.AddSingleton<ITelegramBotClient>(_ => new TelegramBotClient(botToken));
-builder.Services.ConfigureTelegramBot<JsonOptions>(opt => opt.SerializerOptions);
+builder.Services.ConfigureTelegramBotMvc();
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+// Render задаёт PORT (часто 10000). Не переопределяем HTTP_PORTS вручную — слушаем только PORT.
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://+:{port}");
 
 var app = builder.Build();
 var bot = app.Services.GetRequiredService<ITelegramBotClient>();
@@ -89,25 +89,29 @@ else
     await bot.DeleteWebhook(dropPendingUpdates: true);
     bot.StartReceiving(
         BotUpdateHandler.HandleUpdateAsync,
-        BotUpdateHandler.HandleErrorAsync,
+        BotUpdateHandler.HandlePollingErrorAsync,
         new ReceiverOptions { AllowedUpdates = allowedUpdates });
     Console.WriteLine("Локальный режим: long polling (не запускайте одновременно с Render).");
 }
 
-app.MapGet("/", () => Results.Ok("Telegram bot is running"));
-app.MapGet("/health", () => Results.Ok("ok"));
+app.MapMethods("/", new[] { "GET", "HEAD" }, () => Results.Ok("Telegram bot is running"));
+app.MapMethods("/health", new[] { "GET", "HEAD" }, () => Results.Ok("ok"));
 
 if (useWebhook)
 {
-    app.MapPost("/bot/webhook", async (Update update, ITelegramBotClient botClient, CancellationToken ct) =>
+    app.MapPost("/bot/webhook", async (HttpRequest request, ITelegramBotClient botClient, CancellationToken ct) =>
     {
+        var update = await WebhookHelper.ReadUpdateAsync(request, ct);
+        if (update == null)
+            return Results.Ok();
+
         try
         {
             await BotUpdateHandler.HandleUpdateAsync(botClient, update, ct);
         }
         catch (Exception ex)
         {
-            await BotUpdateHandler.HandleErrorAsync(botClient, ex, ct);
+            await BotUpdateHandler.HandleErrorAsync(botClient, update, ex, ct);
         }
 
         return Results.Ok();

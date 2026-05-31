@@ -10,8 +10,8 @@ namespace TelegramBot.Services
     {
         public static async Task<Master?> GetMasterProfileAsync()
         {
-            var response = await SupabaseConfig.Client.From<Master>().Get();
-            return response.Models.FirstOrDefault();
+            var response = await SupabaseConfig.GetClient().From<Master>().Get();
+            return response.Models?.FirstOrDefault();
         }
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace TelegramBot.Services
                 };
 
                 // Upsert автоматически обновит запись, если master_id совпадет, или создаст новую
-                var response = await SupabaseConfig.Client.From<Master>().Upsert(master);
+                var response = await SupabaseConfig.GetClient().From<Master>().Upsert(master);
                 return response.Models.Count > 0;
             }
             catch (Exception ex)
