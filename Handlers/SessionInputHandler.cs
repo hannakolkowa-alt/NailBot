@@ -153,34 +153,101 @@ namespace TelegramBot.Handlers
                     return true;
 
                 case SessionState.Admin_Schedule_Date:
-                    if (!DateOnly.TryParse(text, out var date))
+                    if (!TryParseScheduleDate(text, out var date))
                     {
-                        await bot.SendMessage(chatId, "Формат даты: ГГГГ-ММ-ДД (например 2026-02-27)", cancellationToken: ct);
+                        await bot.SendMessage(chatId, "Формат даты: ГГГГ-ММ-ДД или ДД.ММ.ГГГГ (например 2026-06-01)", cancellationToken: ct);
                         return true;
                     }
-                    var master = await MasterService.GetMasterProfileAsync();
-                    if (master == null) { await bot.SendMessage(chatId, "Сначала создайте профиль.", cancellationToken: ct); return true; }
+                    var master = await MasterService.EnsureMasterExistsAsync("Мастер", null);
                     var wd = await ScheduleService.AddWorkingDateAsync(master.MasterId, date);
-                    session.TargetRequestId = null;
-                    session.Booking.WorkingDateId = wd?.DateId;
+                    if (wd == null)
+                    {
+                        await bot.SendMessage(chatId, "Не удалось сохранить дату. Попробуйте снова.", cancellationToken: ct);
+                        return true;
+                    }
+                    session.Booking.WorkingDateId = wd.DateId;
                     session.State = SessionState.Admin_Schedule_Time;
-                    await bot.SendMessage(chatId, "Введите время слота (ЧЧ:ММ), например 12:00:", cancellationToken: ct);
+                    await bot.SendMessage(chatId,
+                        $"✅ Дата {date:dd.MM.yyyy} сохранена.\n\nВведите время слота (ЧЧ:ММ), например 10:00.\nМожно несколько. Когда закончите — «готово».",
+                        cancellationToken: ct);
                     return true;
 
                 case SessionState.Admin_Schedule_Time:
-                    if (!TimeOnly.TryParse(text, out var time))
+                    if (IsScheduleDone(text))
                     {
-                        await bot.SendMessage(chatId, "Формат: ЧЧ:ММ", cancellationToken: ct);
+                        var savedDate = session.Booking.WorkingDateId;
+                        SessionStore.Reset(chatId);
+                        await bot.SendMessage(chatId,
+                            savedDate.HasValue
+                                ? "✅ Расписание сохранено. Клиенты увидят дату при записи.\nДобавить ещё — /master или «Расписание»."
+                                : "Готово.",
+                            replyMarkup: Keyboards.CreateAdminMenuKeyboard(),
+                            cancellationToken: ct);
                         return true;
                     }
-                    if (session.Booking.WorkingDateId.HasValue)
-                        await ScheduleService.AddTimeSlotAsync(session.Booking.WorkingDateId.Value, time);
-                    SessionStore.Reset(chatId);
-                    await bot.SendMessage(chatId, "Слот добавлен. Можно добавить ещё через «Расписание».", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    if (!TryParseScheduleTime(text, out var time))
+                    {
+                        await bot.SendMessage(chatId, "Формат времени: ЧЧ:ММ (10:00, 14:30) или «готово»", cancellationToken: ct);
+                        return true;
+                    }
+                    if (!session.Booking.WorkingDateId.HasValue)
+                    {
+                        session.State = SessionState.Admin_Schedule_Date;
+                        await bot.SendMessage(chatId, "Сначала введите дату (ГГГГ-ММ-ДД):", cancellationToken: ct);
+                        return true;
+                    }
+                    var slot = await ScheduleService.AddTimeSlotAsync(session.Booking.WorkingDateId.Value, time);
+                    if (slot == null)
+                    {
+                        await bot.SendMessage(chatId, "Не удалось сохранить слот. Проверьте таблицу time_slots в Supabase.", cancellationToken: ct);
+                        return true;
+                    }
+                    await bot.SendMessage(chatId,
+                        $"✅ Слот {time:HH:mm} сохранён.\nВведите ещё время или «готово»:",
+                        cancellationToken: ct);
                     return true;
             }
 
             return false;
+        }
+
+        private static bool TryParseScheduleDate(string text, out DateOnly date)
+        {
+            text = text.Trim();
+            if (DateOnly.TryParse(text, out date))
+                return true;
+
+            if (DateTime.TryParseExact(text, "dd.MM.yyyy", null,
+                    System.Globalization.DateTimeStyles.None, out var dt))
+            {
+                date = DateOnly.FromDateTime(dt);
+                return true;
+            }
+
+            date = default;
+            return false;
+        }
+
+        private static bool TryParseScheduleTime(string text, out TimeOnly time)
+        {
+            text = text.Trim().Replace('.', ':');
+            if (TimeOnly.TryParse(text, out time))
+                return true;
+
+            if (int.TryParse(text, out var hour) && hour is >= 0 and <= 23)
+            {
+                time = new TimeOnly(hour, 0);
+                return true;
+            }
+
+            time = default;
+            return false;
+        }
+
+        private static bool IsScheduleDone(string text)
+        {
+            var t = text.Trim().ToLowerInvariant();
+            return t is "готово" or "готово." or "done" or "ок" or "ok";
         }
     }
 }

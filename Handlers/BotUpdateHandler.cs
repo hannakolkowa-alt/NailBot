@@ -24,7 +24,7 @@ namespace TelegramBot.Handlers
 
                 long chatId = message.Chat.Id;
                 long userId = message.From?.Id ?? chatId;
-                bool isAdmin = userId == BotConfig.AdminTelegramId;
+                bool isAdmin = BotConfig.IsMaster(userId);
                 var normalized = MenuTexts.Normalize(text);
 
                 Console.WriteLine($"Получено от {chatId}: {text}");
@@ -32,7 +32,9 @@ namespace TelegramBot.Handlers
                 if (normalized.StartsWith('/'))
                 {
                     SessionStore.Reset(chatId);
-                    await CommandHandler.HandleAsync(botClient, chatId, NormalizeCommand(text), isAdmin, ct);
+                    await CommandHandler.HandleAsync(
+                        botClient, chatId, NormalizeCommand(text), isAdmin,
+                        message.From?.FirstName, message.From?.Username, ct);
                     return;
                 }
 

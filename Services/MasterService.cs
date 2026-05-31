@@ -14,6 +14,24 @@ namespace TelegramBot.Services
             return response.Models?.FirstOrDefault();
         }
 
+        /// <summary>Создаёт профиль мастера, если в БД ещё нет записи (нужно для расписания).</summary>
+        public static async Task<Master> EnsureMasterExistsAsync(string name, string? telegramUsername)
+        {
+            var existing = await GetMasterProfileAsync();
+            if (existing != null)
+                return existing;
+
+            var masterId = Guid.NewGuid();
+            await SaveOrUpdateProfileAsync(
+                masterId,
+                string.IsNullOrWhiteSpace(name) ? "Мастер" : name.Trim(),
+                telegramUsername?.Trim().TrimStart('@') ?? "",
+                "—",
+                "Профиль создан автоматически. Измените в «Мой профиль».");
+
+            return (await GetMasterProfileAsync())!;
+        }
+
         /// <summary>
         /// Сохраняет или обновляет профиль мастера в базе данных (автоматический Upsert).
         /// </summary>
@@ -33,7 +51,7 @@ namespace TelegramBot.Services
 
                 // Upsert автоматически обновит запись, если master_id совпадет, или создаст новую
                 var response = await SupabaseConfig.GetClient().From<Master>().Upsert(master);
-                return response.Models.Count > 0;
+                return response.Models?.Count > 0;
             }
             catch (Exception ex)
             {

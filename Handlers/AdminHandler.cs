@@ -95,8 +95,15 @@ namespace TelegramBot.Handlers
                     break;
 
                 case "расписание":
+                case "график":
                     session.State = SessionState.Admin_Schedule_Date;
-                    await botClient.SendMessage(chatId, "📅 Введите дату (ГГГГ-ММ-ДД):", cancellationToken: ct);
+                    await botClient.SendMessage(chatId,
+                        "📅 Введите дату рабочего дня:\n" +
+                        "• ГГГГ-ММ-ДД (2026-06-01)\n" +
+                        "• или ДД.ММ.ГГГГ (01.06.2026)\n\n" +
+                        "Затем введите время (10:00, 14:30 …).\n" +
+                        "Когда все слоты добавлены — «готово».",
+                        cancellationToken: ct);
                     break;
 
                 case "отзывы":

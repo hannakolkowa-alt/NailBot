@@ -17,7 +17,7 @@ namespace TelegramBot.Handlers
             var data = cq.Data ?? "";
             var chatId = cq.Message?.Chat.Id ?? cq.From.Id;
             var userId = cq.From.Id;
-            var isAdmin = userId == BotConfig.AdminTelegramId;
+            var isAdmin = BotConfig.IsMaster(userId);
 
             try
             {
