@@ -45,6 +45,13 @@ namespace TelegramBot.Handlers
                         cancellationToken: ct);
                     break;
 
+                case "/client":
+                    await botClient.SendMessage(chatId,
+                        "👤 Клиентское меню.\nДля панели мастера — /master",
+                        replyMarkup: Keyboards.CreateMainMenuKeyboard(),
+                        cancellationToken: ct);
+                    break;
+
                 case "/master":
                 case "/admin":
                     if (!isAdmin)

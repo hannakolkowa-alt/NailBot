@@ -14,6 +14,14 @@ namespace TelegramBot.Handlers
             var session = SessionStore.GetOrCreate(chatId);
             if (session.State == SessionState.Idle) return false;
 
+            if (IsScheduleCancel(text))
+            {
+                SessionStore.Reset(chatId);
+                var kb = isAdmin ? Keyboards.CreateAdminMenuKeyboard() : Keyboards.CreateMainMenuKeyboard();
+                await bot.SendMessage(chatId, "Ввод отменён. /master — панель мастера, /client — клиентское меню.", replyMarkup: kb, cancellationToken: ct);
+                return true;
+            }
+
             switch (session.State)
             {
                 case SessionState.Booking_EnterName:
@@ -270,6 +278,12 @@ namespace TelegramBot.Handlers
         {
             var t = text.Trim().ToLowerInvariant();
             return t is "готово" or "готово." or "done" or "ок" or "ok";
+        }
+
+        private static bool IsScheduleCancel(string text)
+        {
+            var t = text.Trim().ToLowerInvariant();
+            return t is "отмена" or "отменить" or "cancel" or "выход" or "◀️ меню" or "меню" or "в меню";
         }
 
         /// <summary>2026-06-02 10:00, 14.30 → дата + список времён</summary>

@@ -16,7 +16,11 @@ namespace TelegramBot.Handlers
             switch (text)
             {
                 case "◀️ меню":
-                    await botClient.SendMessage(chatId, "Главное меню 👇", replyMarkup: kb, cancellationToken: ct);
+                    SessionStore.Reset(chatId);
+                    await botClient.SendMessage(chatId,
+                        "Меню мастера 👇\nКлиентское меню — /client",
+                        replyMarkup: kb,
+                        cancellationToken: ct);
                     break;
 
                 case "клиентская база":
