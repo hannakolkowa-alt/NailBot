@@ -14,6 +14,11 @@ namespace TelegramBot.Handlers
 
             switch (text)
             {
+                case "◀️ меню":
+                    await botClient.SendMessage(chatId, "Главное меню 👇", replyMarkup: kb, cancellationToken: ct);
+                    break;
+
+                case "галерея":
                 case "о мастере":
                     var profile = await MasterService.GetMasterProfileAsync();
                     if (profile == null)
@@ -37,16 +42,20 @@ namespace TelegramBot.Handlers
                     }
                     break;
 
+                case "прайс":
+                case "записаться":
                 case "услуги":
                     await BookingFlow.StartAsync(botClient, chatId, ct);
                     break;
 
+                case "график":
                 case "расписание":
                     var now = DateTime.Now;
                     var schedule = await ScheduleService.FormatMonthScheduleAsync(now.Year, now.Month);
                     await botClient.SendMessage(chatId, schedule, replyMarkup: kb, cancellationToken: ct);
                     break;
 
+                case "мои записи":
                 case "записи":
                     await ShowClientRecordsAsync(botClient, chatId, userId, ct);
                     break;

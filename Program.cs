@@ -74,10 +74,12 @@ var webhookBase = builder.Configuration["RENDER_EXTERNAL_URL"]
     ?? builder.Configuration["WebhookUrl"];
 var useWebhook = !string.IsNullOrWhiteSpace(webhookBase);
 
+var allowedUpdates = new[] { UpdateType.Message, UpdateType.CallbackQuery };
+
 if (useWebhook)
 {
     var webhookUrl = $"{webhookBase.TrimEnd('/')}/bot/webhook";
-    await bot.SetWebhook(webhookUrl, allowedUpdates: []);
+    await bot.SetWebhook(webhookUrl, allowedUpdates: allowedUpdates);
     var webhookInfo = await bot.GetWebhookInfo();
     Console.WriteLine($"Webhook установлен: {webhookUrl}");
     Console.WriteLine($"Webhook status: {webhookInfo.Url}, pending: {webhookInfo.PendingUpdateCount}, last error: {webhookInfo.LastErrorMessage ?? "нет"}");
@@ -88,7 +90,7 @@ else
     bot.StartReceiving(
         BotUpdateHandler.HandleUpdateAsync,
         BotUpdateHandler.HandleErrorAsync,
-        new ReceiverOptions { AllowedUpdates = Array.Empty<UpdateType>() });
+        new ReceiverOptions { AllowedUpdates = allowedUpdates });
     Console.WriteLine("Локальный режим: long polling (не запускайте одновременно с Render).");
 }
 

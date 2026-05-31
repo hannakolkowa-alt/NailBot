@@ -1,6 +1,7 @@
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramBot;
 using TelegramBot.Constants;
 using TelegramBot.Flows;
 using TelegramBot.Services;
@@ -18,13 +19,31 @@ namespace TelegramBot.Handlers
             var userId = cq.From.Id;
             var isAdmin = userId == BotConfig.AdminTelegramId;
 
-            await bot.AnswerCallbackQuery(cq.Id, cancellationToken: ct);
+            try
+            {
+                await bot.AnswerCallbackQuery(cq.Id, cancellationToken: ct);
+                await HandleCallbackCoreAsync(bot, chatId, userId, isAdmin, data, cq.From.Username, cq.From.FirstName, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Callback error [{data}]: {ex.Message}");
+                try
+                {
+                    await bot.SendMessage(chatId,
+                        "⚠️ Не удалось обработать кнопку. Нажмите /start или «◀️ Меню».",
+                        cancellationToken: ct);
+                }
+                catch { }
+            }
+        }
 
+        private static async Task HandleCallbackCoreAsync(ITelegramBotClient bot, long chatId, long userId, bool isAdmin, string data, string? username, string? firstName, CancellationToken ct)
+        {
             var session = SessionStore.GetOrCreate(chatId);
 
-            if (data.StartsWith("cat:"))
+            if (data.StartsWith("cat:") && int.TryParse(data[4..], out var catIdx))
             {
-                await BookingFlow.ShowCategoryServicesAsync(bot, chatId, int.Parse(data[4..]), ct);
+                await BookingFlow.ShowCategoryServicesAsync(bot, chatId, catIdx, ct);
                 return;
             }
 
@@ -37,7 +56,11 @@ namespace TelegramBot.Handlers
             if (data.StartsWith("svc:"))
             {
                 if (data == "svc:done") { await BookingFlow.ShowDatesAsync(bot, chatId, ct); return; }
-                var idx = int.Parse(data[4..]);
+                if (!int.TryParse(data[4..], out var idx) || idx < 0 || idx >= session.CachedServiceIds.Count)
+                {
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
                 if (idx >= 0 && idx < session.CachedServiceIds.Count)
                 {
                     var id = session.CachedServiceIds[idx];
@@ -51,10 +74,14 @@ namespace TelegramBot.Handlers
             if (data.StartsWith("add:"))
             {
                 if (data == "add:done") { await BookingFlow.ShowDatesAsync(bot, chatId, ct); return; }
-                var idx = int.Parse(data[4..]);
-                if (idx >= 0 && idx < session.CachedServiceIds.Count)
+                if (!int.TryParse(data[4..], out var addIdx) || addIdx < 0 || addIdx >= session.CachedServiceIds.Count)
                 {
-                    var id = session.CachedServiceIds[idx];
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
+                if (addIdx >= 0 && addIdx < session.CachedServiceIds.Count)
+                {
+                    var id = session.CachedServiceIds[addIdx];
                     if (session.Booking.SelectedServiceIds.Contains(id)) session.Booking.SelectedServiceIds.Remove(id);
                     else session.Booking.SelectedServiceIds.Add(id);
                     await BookingFlow.ShowAdditionalAsync(bot, chatId, ct);
@@ -62,15 +89,15 @@ namespace TelegramBot.Handlers
                 return;
             }
 
-            if (data.StartsWith("date:"))
+            if (data.StartsWith("date:") && int.TryParse(data[5..], out var dateIdx))
             {
-                await BookingFlow.ShowTimesAsync(bot, chatId, int.Parse(data[5..]), ct);
+                await BookingFlow.ShowTimesAsync(bot, chatId, dateIdx, ct);
                 return;
             }
 
-            if (data.StartsWith("slot:"))
+            if (data.StartsWith("slot:") && int.TryParse(data[5..], out var slotIdx))
             {
-                var idx = int.Parse(data[5..]);
+                var idx = slotIdx;
                 if (idx >= 0 && idx < session.CachedSlotIds.Count)
                 {
                     session.Booking.TimeSlotId = session.CachedSlotIds[idx];
@@ -90,14 +117,15 @@ namespace TelegramBot.Handlers
 
             if (data == "book:ok")
             {
-                await BookingFlow.SubmitAsync(bot, chatId, userId, cq.From.Username, cq.From.FirstName, ct);
+                await BookingFlow.SubmitAsync(bot, chatId, userId, username, firstName, ct);
                 return;
             }
 
             if (data.StartsWith("req_ok:"))
             {
                 if (!isAdmin) return;
-                var reqId = session.CachedRequestIds[int.Parse(data[7..])];
+                if (!int.TryParse(data[7..], out var ri) || ri >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
+                var reqId = session.CachedRequestIds[ri];
                 await ApproveRequestAsync(bot, chatId, reqId, ct);
                 return;
             }
@@ -105,7 +133,8 @@ namespace TelegramBot.Handlers
             if (data.StartsWith("req_no:"))
             {
                 if (!isAdmin) return;
-                session.TargetRequestId = session.CachedRequestIds[int.Parse(data[7..])];
+                if (!int.TryParse(data[7..], out var rj) || rj >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
+                session.TargetRequestId = session.CachedRequestIds[rj];
                 session.State = SessionState.Admin_RejectReason;
                 await bot.SendMessage(chatId, "Укажите причину отклонения заявки:", cancellationToken: ct);
                 return;
@@ -114,14 +143,16 @@ namespace TelegramBot.Handlers
             if (data.StartsWith("apt_done:"))
             {
                 if (!isAdmin) return;
-                var aptId = session.CachedAppointmentIds[int.Parse(data[9..])];
+                if (!int.TryParse(data[9..], out var ai) || ai >= session.CachedAppointmentIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
+                var aptId = session.CachedAppointmentIds[ai];
                 await MarkAppointmentDoneAsync(bot, chatId, aptId, ct);
                 return;
             }
 
             if (data.StartsWith("rec_can:"))
             {
-                var reqId = session.CachedRequestIds[int.Parse(data[8..])];
+                if (!int.TryParse(data[8..], out var ci) || ci >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
+                var reqId = session.CachedRequestIds[ci];
                 session.TargetRequestId = reqId;
                 session.State = SessionState.Cancel_EnterReason;
                 await bot.SendMessage(chatId, "Укажите причину отмены (мастер получит уведомление):", cancellationToken: ct);
@@ -130,7 +161,8 @@ namespace TelegramBot.Handlers
 
             if (data.StartsWith("rec_chg:"))
             {
-                var reqId = session.CachedRequestIds[int.Parse(data[8..])];
+                if (!int.TryParse(data[8..], out var cg) || cg >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
+                var reqId = session.CachedRequestIds[cg];
                 session.Booking.EditingRequestId = reqId;
                 SessionStore.Reset(chatId);
                 SessionStore.GetOrCreate(chatId).Booking.EditingRequestId = reqId;
@@ -142,7 +174,8 @@ namespace TelegramBot.Handlers
             if (data.StartsWith("cli_del:"))
             {
                 if (!isAdmin) return;
-                var clientId = session.CachedClientIds[int.Parse(data[8..])];
+                if (!int.TryParse(data[8..], out var di) || di >= session.CachedClientIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
+                var clientId = session.CachedClientIds[di];
                 await ClientService.DeleteClientAsync(clientId);
                 await bot.SendMessage(chatId, "Клиент удалён.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
                 return;
@@ -162,6 +195,14 @@ namespace TelegramBot.Handlers
                 session.AdminEditField = data[5..];
                 await bot.SendMessage(chatId, "Введите новое значение:", cancellationToken: ct);
             }
+        }
+
+        private static async Task StaleCallbackAsync(ITelegramBotClient bot, long chatId, CancellationToken ct)
+        {
+            SessionStore.Reset(chatId);
+            await bot.SendMessage(chatId,
+                "Сессия устарела. Нажмите «Услуги» или /start, чтобы начать заново.",
+                cancellationToken: ct);
         }
 
         private static async Task ApproveRequestAsync(ITelegramBotClient bot, long adminChatId, Guid requestId, CancellationToken ct)

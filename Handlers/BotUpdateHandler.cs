@@ -1,6 +1,8 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Types;
 using TelegramBot;
+using TelegramBot.State;
+using TelegramBot.UI;
 
 namespace TelegramBot.Handlers
 {
@@ -8,26 +10,38 @@ namespace TelegramBot.Handlers
     {
         public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)
         {
-            if (update.CallbackQuery is { } callback)
+            try
             {
-                await CallbackHandler.HandleAsync(botClient, callback, ct);
-                return;
-            }
+                if (update.CallbackQuery is { } callback)
+                {
+                    await CallbackHandler.HandleAsync(botClient, callback, ct);
+                    return;
+                }
 
-            if (update.Message is not { } message) return;
+                if (update.Message is not { } message || message.Text is not { } text)
+                    return;
 
-            long chatId = message.Chat.Id;
-            long userId = message.From?.Id ?? chatId;
-            bool isAdmin = userId == BotConfig.AdminTelegramId;
+                long chatId = message.Chat.Id;
+                long userId = message.From?.Id ?? chatId;
+                bool isAdmin = userId == BotConfig.AdminTelegramId;
+                var normalized = MenuTexts.Normalize(text);
 
-            if (message.Text is { } text)
-            {
-                string command = NormalizeCommand(text);
                 Console.WriteLine($"Получено от {chatId}: {text}");
 
-                if (command.StartsWith("/"))
+                if (normalized.StartsWith('/'))
                 {
-                    await CommandHandler.HandleAsync(botClient, chatId, command, isAdmin, ct);
+                    SessionStore.Reset(chatId);
+                    await CommandHandler.HandleAsync(botClient, chatId, NormalizeCommand(text), isAdmin, ct);
+                    return;
+                }
+
+                if (MenuTexts.IsMenuButton(normalized))
+                {
+                    SessionStore.Reset(chatId);
+                    if (isAdmin)
+                        await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
+                    else
+                        await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
                     return;
                 }
 
@@ -35,17 +49,20 @@ namespace TelegramBot.Handlers
                     return;
 
                 if (isAdmin)
-                    await AdminHandler.HandleAsync(botClient, chatId, text.ToLowerInvariant(), ct);
+                    await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
                 else
-                    await ClientHandler.HandleAsync(botClient, chatId, userId, text.ToLowerInvariant(), ct);
-                return;
+                    await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HandleUpdate error: {ex}");
+                await HandleErrorAsync(botClient, ex, ct);
             }
         }
 
-        public static Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)
+        public static async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)
         {
-            Console.WriteLine($"Ошибка Telegram API:\n{exception.Message}");
-            return Task.CompletedTask;
+            Console.WriteLine($"Ошибка Telegram API:\n{exception}");
         }
 
         private static string NormalizeCommand(string text)

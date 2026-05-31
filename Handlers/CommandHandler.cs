@@ -1,4 +1,5 @@
 ﻿using Telegram.Bot;
+using TelegramBot.State;
 using TelegramBot.UI;
 
 namespace TelegramBot.Handlers
@@ -13,6 +14,8 @@ namespace TelegramBot.Handlers
         public static async Task HandleAsync(ITelegramBotClient botClient, long chatId, string command, bool isAdmin, CancellationToken ct)
         {
             var keyboard = isAdmin ? Keyboards.CreateAdminMenuKeyboard() : Keyboards.CreateMainMenuKeyboard();
+
+            SessionStore.Reset(chatId);
 
             switch (command)
             {

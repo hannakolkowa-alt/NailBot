@@ -11,7 +11,8 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("О мастере") },
                 new[] { new KeyboardButton("Услуги") },
                 new[] { new KeyboardButton("Расписание") },
-                new[] { new KeyboardButton("Записи") }
+                new[] { new KeyboardButton("Записи") },
+                new[] { new KeyboardButton("◀️ Меню") }
             })
             { ResizeKeyboard = true };
         }
@@ -24,7 +25,8 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("Записи"), new KeyboardButton("Заявки") },
                 new[] { new KeyboardButton("Мой профиль"), new KeyboardButton("Изменить профиль") },
                 new[] { new KeyboardButton("Услуги"), new KeyboardButton("Расписание") },
-                new[] { new KeyboardButton("Отзывы") }
+                new[] { new KeyboardButton("Отзывы") },
+                new[] { new KeyboardButton("◀️ Меню") }
             })
             { ResizeKeyboard = true };
         }
