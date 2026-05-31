@@ -10,7 +10,9 @@ namespace TelegramBot.Helpers
             Console.WriteLine($"User {chatId} error: {ex}");
             try
             {
-                var msg = ex.Message.Contains("Invalid API key", StringComparison.OrdinalIgnoreCase)
+                var msg = ex.Message.Contains("permission denied", StringComparison.OrdinalIgnoreCase)
+                    ? "⚠️ Нет прав к таблицам в Supabase.\n\n1) На Render в SupabaseKey укажите secret (sb_secret_) или service_role (eyJ...), не publishable.\n2) В Supabase → SQL Editor выполните файл supabase_permissions.sql из проекта."
+                    : ex.Message.Contains("Invalid API key", StringComparison.OrdinalIgnoreCase)
                     ? "⚠️ Неверный ключ Supabase.\n\nНа Render задайте:\n• SupabaseUrl — https://ВАШ-проект.supabase.co\n• SupabaseKey — secret (sb_secret_...) или service_role (eyJ...), НЕ publishable."
                     : ex.Message.Contains("Supabase", StringComparison.OrdinalIgnoreCase) ||
                       ex is NullReferenceException
