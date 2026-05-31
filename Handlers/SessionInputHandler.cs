@@ -153,9 +153,31 @@ namespace TelegramBot.Handlers
                     return true;
 
                 case SessionState.Admin_Schedule_Date:
-                    if (!TryParseScheduleDate(text, out var date))
+                    if (TryParseScheduleDateWithTimes(text, out var date, out var times))
                     {
-                        await bot.SendMessage(chatId, "Формат даты: ГГГГ-ММ-ДД или ДД.ММ.ГГГГ (например 2026-06-01)", cancellationToken: ct);
+                        var masterQuick = await MasterService.EnsureMasterExistsAsync("Мастер", null);
+                        var wdQuick = await ScheduleService.AddWorkingDateAsync(masterQuick.MasterId, date);
+                        if (wdQuick == null)
+                        {
+                            await bot.SendMessage(chatId, "Не удалось сохранить дату.", cancellationToken: ct);
+                            return true;
+                        }
+                        session.Booking.WorkingDateId = wdQuick.DateId;
+                        foreach (var t in times)
+                            await ScheduleService.AddTimeSlotAsync(wdQuick.DateId, t);
+                        SessionStore.Reset(chatId);
+                        await bot.SendMessage(chatId,
+                            $"✅ Сохранено: {date:dd.MM.yyyy}, слоты {string.Join(", ", times.Select(t => t.ToString("HH:mm")))}",
+                            replyMarkup: Keyboards.CreateAdminMenuKeyboard(),
+                            cancellationToken: ct);
+                        return true;
+                    }
+
+                    if (!TryParseScheduleDate(text, out date))
+                    {
+                        await bot.SendMessage(chatId,
+                            "Формат:\n• дата: 2026-06-02 или 02.06.2026\n• или сразу: 2026-06-02 10:00, 14:30",
+                            cancellationToken: ct);
                         return true;
                     }
                     var master = await MasterService.EnsureMasterExistsAsync("Мастер", null);
@@ -248,6 +270,32 @@ namespace TelegramBot.Handlers
         {
             var t = text.Trim().ToLowerInvariant();
             return t is "готово" or "готово." or "done" or "ок" or "ok";
+        }
+
+        /// <summary>2026-06-02 10:00, 14.30 → дата + список времён</summary>
+        private static bool TryParseScheduleDateWithTimes(string text, out DateOnly date, out List<TimeOnly> times)
+        {
+            times = new();
+            date = default;
+
+            var trimmed = text.Trim();
+            var spaceIdx = trimmed.IndexOf(' ');
+            if (spaceIdx < 0)
+                return false;
+
+            var datePart = trimmed[..spaceIdx];
+            if (!TryParseScheduleDate(datePart, out date))
+                return false;
+
+            var timePart = trimmed[(spaceIdx + 1)..];
+            foreach (var chunk in timePart.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!TryParseScheduleTime(chunk, out var t))
+                    return false;
+                times.Add(t);
+            }
+
+            return times.Count > 0;
         }
     }
 }

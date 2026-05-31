@@ -45,15 +45,17 @@ namespace TelegramBot.Services
 
         public static async Task<WorkingDate?> AddWorkingDateAsync(Guid masterId, DateOnly date)
         {
-            var existing = await SupabaseConfig.GetClient()
-                .From<WorkingDate>()
-                .Where(w => w.MasterId == masterId && w.Date == date)
-                .Get();
+            var all = await GetWorkingDatesAsync(DateOnly.MinValue, DateOnly.MaxValue);
+            var found = all.FirstOrDefault(d => d.MasterId == masterId && d.Date == date);
+            if (found != null)
+                return found;
 
-            if (existing.Models?.Any() == true)
-                return existing.Models.First();
-
-            var wd = new WorkingDate { DateId = Guid.NewGuid(), MasterId = masterId, Date = date };
+            var wd = new WorkingDate
+            {
+                DateId = Guid.NewGuid(),
+                MasterId = masterId,
+                Date = date
+            };
             var res = await SupabaseConfig.GetClient().From<WorkingDate>().Insert(wd);
             return res.Models?.FirstOrDefault();
         }

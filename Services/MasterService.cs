@@ -22,14 +22,21 @@ namespace TelegramBot.Services
                 return existing;
 
             var masterId = Guid.NewGuid();
-            await SaveOrUpdateProfileAsync(
+            var saved = await SaveOrUpdateProfileAsync(
                 masterId,
                 string.IsNullOrWhiteSpace(name) ? "Мастер" : name.Trim(),
-                telegramUsername?.Trim().TrimStart('@') ?? "",
+                telegramUsername?.Trim().TrimStart('@') ?? "master",
                 "—",
                 "Профиль создан автоматически. Измените в «Мой профиль».");
 
-            return (await GetMasterProfileAsync())!;
+            if (!saved)
+                throw new InvalidOperationException("Не удалось создать профиль в таблице masters. Проверьте таблицу в Supabase.");
+
+            var created = await GetMasterProfileAsync();
+            if (created == null)
+                throw new InvalidOperationException("Профиль мастера не найден после сохранения.");
+
+            return created;
         }
 
         /// <summary>
@@ -37,27 +44,20 @@ namespace TelegramBot.Services
         /// </summary>
         public static async Task<bool> SaveOrUpdateProfileAsync(Guid masterId, string name, string username, string experience, string description)
         {
-            try
+            var now = DateTime.UtcNow;
+            var master = new Master
             {
-                var master = new Master
-                {
-                    MasterId = masterId,
-                    Name = name,
-                    TelegramUsername = username,
-                    Experience = experience,
-                    Description = description,
-                    UpdatedAt = DateTime.UtcNow
-                };
+                MasterId = masterId,
+                Name = name,
+                TelegramUsername = string.IsNullOrWhiteSpace(username) ? "master" : username,
+                Experience = experience,
+                Description = description,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
 
-                // Upsert автоматически обновит запись, если master_id совпадет, или создаст новую
-                var response = await SupabaseConfig.GetClient().From<Master>().Upsert(master);
-                return response.Models?.Count > 0;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ошибка сохранения профиля: {ex.Message}");
-                return false;
-            }
+            var response = await SupabaseConfig.GetClient().From<Master>().Upsert(master);
+            return response.Models?.Count > 0;
         }
     }
 }

@@ -14,14 +14,19 @@ namespace TelegramBot.Helpers
                     ? "⚠️ Нет прав к таблицам в Supabase.\n\n1) На Render в SupabaseKey укажите secret (sb_secret_) или service_role (eyJ...), не publishable.\n2) В Supabase → SQL Editor выполните файл supabase_permissions.sql из проекта."
                     : ex.Message.Contains("Invalid API key", StringComparison.OrdinalIgnoreCase)
                     ? "⚠️ Неверный ключ Supabase.\n\nНа Render задайте:\n• SupabaseUrl — https://ВАШ-проект.supabase.co\n• SupabaseKey — secret (sb_secret_...) или service_role (eyJ...), НЕ publishable."
-                    : ex.Message.Contains("Supabase", StringComparison.OrdinalIgnoreCase) ||
-                      ex is NullReferenceException
-                    ? "⚠️ Ошибка базы данных. Проверьте SupabaseUrl и SupabaseKey на Render."
-                    : $"⚠️ Ошибка: {ex.Message}";
+                    : ex.Message.Contains("masters", StringComparison.OrdinalIgnoreCase)
+                    ? "⚠️ Ошибка таблицы masters.\nВ Supabase SQL Editor выполните supabase_schema.sql из проекта."
+                    : ex.Message.Contains("working_dates", StringComparison.OrdinalIgnoreCase) ||
+                      ex.Message.Contains("time_slots", StringComparison.OrdinalIgnoreCase)
+                    ? "⚠️ Ошибка расписания.\nВыполните database_migration.sql и supabase_permissions.sql в Supabase."
+                    : $"⚠️ {Truncate(ex.Message, 350)}";
 
                 await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
             }
             catch { }
         }
+
+        private static string Truncate(string text, int max) =>
+            text.Length <= max ? text : text[..max] + "…";
     }
 }
