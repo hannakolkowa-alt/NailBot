@@ -12,7 +12,7 @@ namespace TelegramBot.Models
         [Column("telegram_username")] public string TelegramUsername { get; set; }
         [Column("experience")] public string Experience { get; set; }
         [Column("description")] public string Description { get; set; }
-        [Column("created_at")] public DateTime CreatedAt { get; set; }
-        [Column("updated_at")] public DateTime UpdatedAt { get; set; }
+        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("updated_at")] public DateTime? UpdatedAt { get; set; }
     }
 }

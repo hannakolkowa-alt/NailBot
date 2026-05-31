@@ -1,4 +1,5 @@
 -- Выполните в Supabase SQL Editor, если сохранение мастера/расписания падает
+-- Если таблица masters УЖЕ была — после этого обязательно supabase_fix_masters.sql
 
 -- masters
 CREATE TABLE IF NOT EXISTS masters (

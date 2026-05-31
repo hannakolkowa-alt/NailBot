@@ -15,7 +15,7 @@ namespace TelegramBot.Helpers
                     : ex.Message.Contains("Invalid API key", StringComparison.OrdinalIgnoreCase)
                     ? "⚠️ Неверный ключ Supabase.\n\nНа Render задайте:\n• SupabaseUrl — https://ВАШ-проект.supabase.co\n• SupabaseKey — secret (sb_secret_...) или service_role (eyJ...), НЕ publishable."
                     : ex.Message.Contains("masters", StringComparison.OrdinalIgnoreCase)
-                    ? "⚠️ Ошибка таблицы masters.\nВ Supabase SQL Editor выполните supabase_schema.sql из проекта."
+                    ? "⚠️ Таблица masters не совпадает с ботом.\n\n1) SQL Editor → выполните supabase_fix_masters.sql\n2) Settings → API → Reload schema\n3) Redeploy на Render → /master"
                     : ex.Message.Contains("working_dates", StringComparison.OrdinalIgnoreCase) ||
                       ex.Message.Contains("time_slots", StringComparison.OrdinalIgnoreCase)
                     ? "⚠️ Ошибка расписания.\nВыполните database_migration.sql и supabase_permissions.sql в Supabase."
