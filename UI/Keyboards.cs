@@ -2,44 +2,41 @@
 
 namespace TelegramBot.UI
 {
-    /// <summary>
-    /// Фабрика экранных клавиатур Telegram.
-    /// Генерирует разметку кнопок для главного меню клиента и панели управления администратора.
-    /// </summary>
     public static class Keyboards
     {
         public static ReplyKeyboardMarkup CreateMainMenuKeyboard()
         {
-            var keyboard = new KeyboardButton[][]
+            return new ReplyKeyboardMarkup(new KeyboardButton[][]
             {
-                new KeyboardButton[] { "О мастере" },
-                new KeyboardButton[] { "Галерея", "Прайс" },
-                new KeyboardButton[] { "График", "Записаться" },
-                new KeyboardButton[] { "Мои записи" }
-            };
-
-            return new ReplyKeyboardMarkup(keyboard)
-            {
-                ResizeKeyboard = true,
-                OneTimeKeyboard = false
-            };
+                new[] { new KeyboardButton("О мастере") },
+                new[] { new KeyboardButton("Услуги") },
+                new[] { new KeyboardButton("Расписание") },
+                new[] { new KeyboardButton("Записи") }
+            })
+            { ResizeKeyboard = true };
         }
 
         public static ReplyKeyboardMarkup CreateAdminMenuKeyboard()
         {
-            var keyboard = new KeyboardButton[][]
+            return new ReplyKeyboardMarkup(new KeyboardButton[][]
             {
-                new KeyboardButton[] { "Мой профиль", "Галерея" },
-                new KeyboardButton[] { "Прайс", "График" },
-                new KeyboardButton[] { "Заявки", "Записи" },
-                new KeyboardButton[] { "Отзывы" }
-            };
-
-            return new ReplyKeyboardMarkup(keyboard)
-            {
-                ResizeKeyboard = true,
-                OneTimeKeyboard = false
-            };
+                new[] { new KeyboardButton("Клиентская база") },
+                new[] { new KeyboardButton("Записи"), new KeyboardButton("Заявки") },
+                new[] { new KeyboardButton("Мой профиль"), new KeyboardButton("Изменить профиль") },
+                new[] { new KeyboardButton("Услуги"), new KeyboardButton("Расписание") },
+                new[] { new KeyboardButton("Отзывы") }
+            })
+            { ResizeKeyboard = true };
         }
+
+        public static InlineKeyboardMarkup ConfirmCancel(string confirmData, string cancelData) =>
+            new(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("Подтвердить", confirmData),
+                    InlineKeyboardButton.WithCallbackData("Изменить", cancelData)
+                }
+            });
     }
 }

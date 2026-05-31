@@ -1,0 +1,92 @@
+using TelegramBot.Models;
+
+namespace TelegramBot.Services
+{
+    public static class ScheduleService
+    {
+        public static async Task<List<WorkingDate>> GetWorkingDatesAsync(DateOnly from, DateOnly to)
+        {
+            var response = await SupabaseConfig.Client.From<WorkingDate>().Get();
+            return (response.Models ?? new List<WorkingDate>())
+                .Where(d => d.Date >= from && d.Date <= to)
+                .OrderBy(d => d.Date)
+                .ToList();
+        }
+
+        public static async Task<List<TimeSlot>> GetFreeSlotsAsync(Guid workingDateId)
+        {
+            var slots = await SupabaseConfig.Client
+                .From<TimeSlot>()
+                .Where(s => s.WorkingDateId == workingDateId)
+                .Get();
+
+            var booked = await GetBookedSlotIdsAsync(workingDateId);
+
+            return (slots.Models ?? new List<TimeSlot>())
+                .Where(s => !s.IsBooked && !booked.Contains(s.TimeSlotId))
+                .OrderBy(s => s.Time)
+                .ToList();
+        }
+
+        public static async Task<HashSet<Guid>> GetBookedSlotIdsAsync(Guid workingDateId)
+        {
+            var appts = await SupabaseConfig.Client
+                .From<Appointment>()
+                .Where(a => a.WorkingDateId == workingDateId)
+                .Get();
+
+            var active = (appts.Models ?? new List<Appointment>())
+                .Where(a => a.Status is "CONFIRMED" or "COMPLETED")
+                .Select(a => a.TimeSlotId)
+                .ToHashSet();
+
+            return active;
+        }
+
+        public static async Task<WorkingDate?> AddWorkingDateAsync(Guid masterId, DateOnly date)
+        {
+            var existing = await SupabaseConfig.Client
+                .From<WorkingDate>()
+                .Where(w => w.MasterId == masterId && w.Date == date)
+                .Get();
+
+            if (existing.Models?.Any() == true)
+                return existing.Models.First();
+
+            var wd = new WorkingDate { DateId = Guid.NewGuid(), MasterId = masterId, Date = date };
+            var res = await SupabaseConfig.Client.From<WorkingDate>().Insert(wd);
+            return res.Models?.FirstOrDefault();
+        }
+
+        public static async Task<TimeSlot?> AddTimeSlotAsync(Guid workingDateId, TimeOnly time)
+        {
+            var slot = new TimeSlot
+            {
+                TimeSlotId = Guid.NewGuid(),
+                WorkingDateId = workingDateId,
+                Time = time,
+                IsBooked = false
+            };
+            var res = await SupabaseConfig.Client.From<TimeSlot>().Insert(slot);
+            return res.Models?.FirstOrDefault();
+        }
+
+        public static async Task<string> FormatMonthScheduleAsync(int year, int month)
+        {
+            var from = new DateOnly(year, month, 1);
+            var to = from.AddMonths(1).AddDays(-1);
+            var dates = await GetWorkingDatesAsync(from, to);
+
+            if (!dates.Any())
+                return $"📅 Расписание на {month:00}.{year}: даты пока не добавлены мастером.";
+
+            var lines = new List<string> { $"📅 Расписание на {month:00}.{year}:\n" };
+            foreach (var d in dates)
+            {
+                var free = await GetFreeSlotsAsync(d.DateId);
+                lines.Add($"• {d.Date:dd.MM.yyyy} — свободно слотов: {free.Count}");
+            }
+            return string.Join("\n", lines);
+        }
+    }
+}

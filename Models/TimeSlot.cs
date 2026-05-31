@@ -9,7 +9,13 @@ namespace TelegramBot.Models
         [PrimaryKey("time_slot_id", false)]
         public Guid TimeSlotId { get; set; }
 
-        [Column("время")]
+        [Column("time")]
         public TimeOnly Time { get; set; }
+
+        [Column("working_date_id")]
+        public Guid? WorkingDateId { get; set; }
+
+        [Column("is_booked")]
+        public bool IsBooked { get; set; }
     }
 }

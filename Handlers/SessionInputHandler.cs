@@ -1,0 +1,186 @@
+using Telegram.Bot;
+using TelegramBot.Constants;
+using TelegramBot.Flows;
+using TelegramBot.Services;
+using TelegramBot.State;
+using TelegramBot.UI;
+
+namespace TelegramBot.Handlers
+{
+    public static class SessionInputHandler
+    {
+        public static async Task<bool> TryHandleAsync(ITelegramBotClient bot, long chatId, long userId, string text, bool isAdmin, CancellationToken ct)
+        {
+            var session = SessionStore.GetOrCreate(chatId);
+            if (session.State == SessionState.Idle) return false;
+
+            switch (session.State)
+            {
+                case SessionState.Booking_EnterName:
+                    session.Booking.ClientName = text.Trim();
+                    session.State = SessionState.Booking_EnterUsername;
+                    await bot.SendMessage(chatId, "Введите ник в Telegram (например @wannxxl):", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Booking_EnterUsername:
+                    session.Booking.TelegramNick = text.Trim().TrimStart('@');
+                    if (!string.IsNullOrEmpty(session.Booking.TelegramNick) && !session.Booking.TelegramNick.StartsWith('@'))
+                        session.Booking.TelegramNick = "@" + session.Booking.TelegramNick;
+                    session.State = SessionState.Idle;
+                    await BookingFlow.ShowSummaryAsync(bot, chatId, ct);
+                    return true;
+
+                case SessionState.Cancel_EnterReason:
+                    if (session.TargetRequestId.HasValue)
+                    {
+                        await RequestService.UpdateRequestStatusAsync(session.TargetRequestId.Value, RequestStatus.Cancelled, $"Отмена клиентом: {text}");
+                        try
+                        {
+                            await bot.SendMessage(BotConfig.AdminTelegramId,
+                                $"❌ Клиент отменил запись.\nПричина: {text}", cancellationToken: ct);
+                        }
+                        catch { }
+                    }
+                    SessionStore.Reset(chatId);
+                    await bot.SendMessage(chatId, "Запись отменена.", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                    return true;
+
+                case SessionState.Review_EnterText:
+                    var client = await ClientService.GetOrCreateAsync(userId, null, null);
+                    await ReviewService.AddAsync(client.ClientId, session.TargetAppointmentId, text);
+                    SessionStore.Reset(chatId);
+                    await bot.SendMessage(chatId, "Спасибо за отзыв! ⭐", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                    try
+                    {
+                        await bot.SendMessage(BotConfig.AdminTelegramId, $"⭐ Новый отзыв от @{client.TelegramUsername}:\n{text}", cancellationToken: ct);
+                    }
+                    catch { }
+                    return true;
+
+                case SessionState.Admin_RejectReason:
+                    if (session.TargetRequestId.HasValue)
+                    {
+                        await RequestService.UpdateRequestStatusAsync(session.TargetRequestId.Value, RequestStatus.Rejected, text);
+                        var req = await RequestService.GetByIdAsync(session.TargetRequestId.Value);
+                        if (req != null)
+                        {
+                            var cl = (await ClientService.GetAllClientsAsync()).FirstOrDefault(c => c.ClientId == req.ClientId);
+                            if (cl != null)
+                            {
+                                try
+                                {
+                                    await bot.SendMessage(cl.TelegramId, $"Заявка отклонена.\nПричина: {text}", cancellationToken: ct);
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                    SessionStore.Reset(chatId);
+                    await bot.SendMessage(chatId, "Заявка отклонена.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Profile_Name:
+                    session.TempText = text;
+                    session.State = SessionState.Admin_Profile_Username;
+                    await bot.SendMessage(chatId, "Введите ваш Telegram username (без @):", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Profile_Username:
+                    session.AdminEditField = text;
+                    session.State = SessionState.Admin_Profile_Experience;
+                    await bot.SendMessage(chatId, "Введите опыт работы:", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Profile_Experience:
+                    session.TargetRequestId = null;
+                    var exp = text;
+                    session.State = SessionState.Admin_Profile_Description;
+                    session.TempText = session.TempText + "|" + session.AdminEditField + "|" + exp;
+                    await bot.SendMessage(chatId, "Введите описание (о себе):", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Profile_Description:
+                    var parts = (session.TempText ?? "").Split('|');
+                    var name = parts.Length > 0 ? parts[0] : "Мастер";
+                    var user = parts.Length > 1 ? parts[1] : "";
+                    var experience = parts.Length > 2 ? parts[2] : "";
+                    await MasterService.SaveOrUpdateProfileAsync(Guid.NewGuid(), name, user, experience, text);
+                    SessionStore.Reset(chatId);
+                    await bot.SendMessage(chatId, "✅ Профиль создан!", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_EditProfile:
+                    var profile = await MasterService.GetMasterProfileAsync();
+                    if (profile == null) return true;
+                    var field = session.AdminEditField;
+                    switch (field)
+                    {
+                        case "name": profile.Name = text; break;
+                        case "user": profile.TelegramUsername = text; break;
+                        case "exp": profile.Experience = text; break;
+                        case "desc": profile.Description = text; break;
+                    }
+                    await MasterService.SaveOrUpdateProfileAsync(profile.MasterId, profile.Name, profile.TelegramUsername, profile.Experience, profile.Description);
+                    SessionStore.Reset(chatId);
+                    await bot.SendMessage(chatId, "Профиль обновлён.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Service_Name:
+                    session.ServiceDraftName = text;
+                    session.State = SessionState.Admin_Service_Description;
+                    await bot.SendMessage(chatId, "Описание услуги:", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Service_Description:
+                    session.ServiceDraftDesc = text;
+                    session.State = SessionState.Admin_Service_Price;
+                    await bot.SendMessage(chatId, "Цена (число):", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Service_Price:
+                    if (!decimal.TryParse(text, out var price)) { await bot.SendMessage(chatId, "Введите число.", cancellationToken: ct); return true; }
+                    session.TempText = price.ToString();
+                    session.State = SessionState.Admin_Service_Duration;
+                    await bot.SendMessage(chatId, "Длительность в минутах:", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Service_Duration:
+                    if (!int.TryParse(text, out var dur)) { await bot.SendMessage(chatId, "Введите число.", cancellationToken: ct); return true; }
+                    var catId = session.AdminCategoryId ?? (await CatalogService.GetCategoriesAsync()).First().CategoryId;
+                    await CatalogService.AddServiceAsync(catId, session.ServiceDraftName!, session.ServiceDraftDesc!, dur, decimal.Parse(session.TempText ?? "0"));
+                    SessionStore.Reset(chatId);
+                    await bot.SendMessage(chatId, "Услуга добавлена.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Schedule_Date:
+                    if (!DateOnly.TryParse(text, out var date))
+                    {
+                        await bot.SendMessage(chatId, "Формат даты: ГГГГ-ММ-ДД (например 2026-02-27)", cancellationToken: ct);
+                        return true;
+                    }
+                    var master = await MasterService.GetMasterProfileAsync();
+                    if (master == null) { await bot.SendMessage(chatId, "Сначала создайте профиль.", cancellationToken: ct); return true; }
+                    var wd = await ScheduleService.AddWorkingDateAsync(master.MasterId, date);
+                    session.TargetRequestId = null;
+                    session.Booking.WorkingDateId = wd?.DateId;
+                    session.State = SessionState.Admin_Schedule_Time;
+                    await bot.SendMessage(chatId, "Введите время слота (ЧЧ:ММ), например 12:00:", cancellationToken: ct);
+                    return true;
+
+                case SessionState.Admin_Schedule_Time:
+                    if (!TimeOnly.TryParse(text, out var time))
+                    {
+                        await bot.SendMessage(chatId, "Формат: ЧЧ:ММ", cancellationToken: ct);
+                        return true;
+                    }
+                    if (session.Booking.WorkingDateId.HasValue)
+                        await ScheduleService.AddTimeSlotAsync(session.Booking.WorkingDateId.Value, time);
+                    SessionStore.Reset(chatId);
+                    await bot.SendMessage(chatId, "Слот добавлен. Можно добавить ещё через «Расписание».", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    return true;
+            }
+
+            return false;
+        }
+    }
+}

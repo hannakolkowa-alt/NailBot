@@ -1,44 +1,89 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Telegram.Bot;
+﻿using Telegram.Bot;
+using Telegram.Bot.Types.ReplyMarkups;
+using TelegramBot.Flows;
+using TelegramBot.Services;
 using TelegramBot.UI;
 
 namespace TelegramBot.Handlers
 {
-    /// <summary>
-    /// Обработчик пользовательского интерфейса.
-    /// Отвечает за взаимодействие с обычными клиентами: просмотр информации о мастере,
-    /// прайс-листа и запуск процесса записи на услуги.
-    /// </summary>
     public static class ClientHandler
     {
-        public static async Task HandleAsync(ITelegramBotClient botClient, long chatId, string text, CancellationToken ct)
+        public static async Task HandleAsync(ITelegramBotClient botClient, long chatId, long userId, string text, CancellationToken ct)
         {
             var kb = Keyboards.CreateMainMenuKeyboard();
 
             switch (text)
             {
                 case "о мастере":
-                    await botClient.SendMessage(chatId, "✨ О мастере:\nОпыт 5+ лет\nРаботаю в центре", replyMarkup: kb, cancellationToken: ct);
+                    var profile = await MasterService.GetMasterProfileAsync();
+                    if (profile == null)
+                    {
+                        await botClient.SendMessage(chatId, "Информация о мастере скоро появится.", replyMarkup: kb, cancellationToken: ct);
+                        break;
+                    }
+                    var nick = string.IsNullOrEmpty(profile.TelegramUsername) ? "" : $"@{profile.TelegramUsername.TrimStart('@')}";
+                    var info = $"✨ О мастере\n\nИмя: {profile.Name}\nНик: {nick}\nОпыт: {profile.Experience}\n\n{profile.Description}";
+                    await botClient.SendMessage(chatId, info, replyMarkup: kb, cancellationToken: ct);
+
+                    var master = profile;
+                    var photos = await GalleryService.GetMasterPhotosAsync(master.MasterId);
+                    foreach (var photo in photos.Take(5))
+                    {
+                        if (!string.IsNullOrEmpty(photo.PhotoUrl))
+                        {
+                            try { await botClient.SendPhoto(chatId, photo.PhotoUrl, cancellationToken: ct); }
+                            catch { await botClient.SendMessage(chatId, $"🖼 {photo.Description ?? photo.PhotoUrl}", cancellationToken: ct); }
+                        }
+                    }
                     break;
-                case "галерея":
-                    await botClient.SendMessage(chatId, "🖼️ Галерея работ (скоро)", replyMarkup: kb, cancellationToken: ct);
+
+                case "услуги":
+                    await BookingFlow.StartAsync(botClient, chatId, ct);
                     break;
-                case "прайс":
-                    await botClient.SendMessage(chatId, "💰 Маникюр — 1500 ₽\nНаращивание — 2500 ₽", replyMarkup: kb, cancellationToken: ct);
+
+                case "расписание":
+                    var now = DateTime.Now;
+                    var schedule = await ScheduleService.FormatMonthScheduleAsync(now.Year, now.Month);
+                    await botClient.SendMessage(chatId, schedule, replyMarkup: kb, cancellationToken: ct);
                     break;
-                case "график":
-                    await botClient.SendMessage(chatId, "📅 Пн–Пт 10:00–20:00", replyMarkup: kb, cancellationToken: ct);
+
+                case "записи":
+                    await ShowClientRecordsAsync(botClient, chatId, userId, ct);
                     break;
-                case "записаться":
-                    await botClient.SendMessage(chatId, "📝 Напишите дату и время", replyMarkup: kb, cancellationToken: ct);
-                    break;
-                case "мои записи":
-                    await botClient.SendMessage(chatId, "📋 Нет активных записей", replyMarkup: kb, cancellationToken: ct);
-                    break;
+
                 default:
                     await botClient.SendMessage(chatId, "Выберите пункт меню 👇", replyMarkup: kb, cancellationToken: ct);
                     break;
+            }
+        }
+
+        private static async Task ShowClientRecordsAsync(ITelegramBotClient bot, long chatId, long userId, CancellationToken ct)
+        {
+            var requests = await RequestService.GetByClientTelegramIdAsync(userId);
+            var session = State.SessionStore.GetOrCreate(chatId);
+            session.CachedRequestIds = requests.Select(r => r.RequestId).ToList();
+
+            if (!requests.Any())
+            {
+                await bot.SendMessage(chatId, "У вас нет активных записей.", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                return;
+            }
+
+            foreach (var (req, i) in requests.Select((r, idx) => (r, idx)))
+            {
+                var services = await CatalogService.GetRequestServicesAsync(req.RequestId);
+                var svcNames = string.Join(", ", services.Select(s => s.Name));
+                var msg = $"📋 Запись #{i + 1}\nСтатус: {req.Status}\nУслуги: {svcNames}\nДата: {req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}\n{req.Comment}";
+
+                var rows = new List<InlineKeyboardButton[]>
+                {
+                    new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData("Отмена", $"rec_can:{i}"),
+                        InlineKeyboardButton.WithCallbackData("Изменить", $"rec_chg:{i}")
+                    }
+                };
+                await bot.SendMessage(chatId, msg, replyMarkup: new InlineKeyboardMarkup(rows), cancellationToken: ct);
             }
         }
     }

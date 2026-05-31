@@ -4,6 +4,7 @@ using Telegram.Bot.AspNetCore;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using TelegramBot.Data;
 using TelegramBot.Handlers;
 using TelegramBot.Services;
 
@@ -36,6 +37,15 @@ try
 catch (Exception ex)
 {
     Console.WriteLine($"Предупреждение: Supabase недоступен ({ex.Message}). Бот всё равно запустится.");
+}
+
+try
+{
+    await DefaultCatalogSeed.EnsureSeedAsync();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Предупреждение: не удалось заполнить каталог ({ex.Message}).");
 }
 
 builder.Services.AddSingleton<ITelegramBotClient>(_ => new TelegramBotClient(botToken));
