@@ -181,28 +181,43 @@ namespace TelegramBot.Handlers
             var session = SessionStore.GetOrCreate(chatId);
             session.CachedAppointmentIds = appts.Select(a => a.AppointmentId).ToList();
             var clients = await ClientService.GetAllClientsAsync();
-            var requests = await SupabaseConfig.GetClient().From<Models.Request>().Get();
+            var allRequests = await SupabaseConfig.GetClient().From<Models.Request>().Get();
+            var approvedRequests = await RequestService.GetApprovedRequestsAsync();
 
-            if (!appts.Any())
+            if (appts.Any())
             {
-                await bot.SendMessage(chatId, "Активных записей нет.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                foreach (var (apt, i) in appts.Select((a, idx) => (a, idx)))
+                {
+                    var req = allRequests.Models?.FirstOrDefault(r => r.RequestId == apt.RequestId);
+                    var cl = clients.FirstOrDefault(c => c.ClientId == apt.ClientId);
+                    var svc = req != null ? await CatalogService.GetRequestServicesAsync(req.RequestId) : new List<Models.Service>();
+                    var msg = $"📋 Запись\nКлиент: {cl?.FirstName} @{cl?.TelegramUsername}\nУслуги: {string.Join(", ", svc.Select(s => s.Name))}\nДата: {req?.DesiredDate:dd.MM.yyyy} {req?.DesiredTime:HH:mm}";
+
+                    await bot.SendMessage(chatId, msg,
+                        replyMarkup: new InlineKeyboardMarkup(new[]
+                        {
+                            new[] { InlineKeyboardButton.WithCallbackData("✅ Выполнено", $"apt_done:{i}") }
+                        }),
+                        cancellationToken: ct);
+                }
                 return;
             }
 
-            foreach (var (apt, i) in appts.Select((a, idx) => (a, idx)))
+            if (approvedRequests.Any())
             {
-                var req = requests.Models?.FirstOrDefault(r => r.RequestId == apt.RequestId);
-                var cl = clients.FirstOrDefault(c => c.ClientId == apt.ClientId);
-                var svc = req != null ? await CatalogService.GetRequestServicesAsync(req.RequestId) : new List<Models.Service>();
-                var msg = $"📋 Запись\nКлиент: {cl?.FirstName} @{cl?.TelegramUsername}\nУслуги: {string.Join(", ", svc.Select(s => s.Name))}\nДата: {req?.DesiredDate:dd.MM.yyyy} {req?.DesiredTime:HH:mm}";
-
-                await bot.SendMessage(chatId, msg,
-                    replyMarkup: new InlineKeyboardMarkup(new[]
-                    {
-                        new[] { InlineKeyboardButton.WithCallbackData("✅ Выполнено", $"apt_done:{i}") }
-                    }),
-                    cancellationToken: ct);
+                await bot.SendMessage(chatId, "📋 Одобренные заявки (календарь):", cancellationToken: ct);
+                foreach (var req in approvedRequests)
+                {
+                    var cl = clients.FirstOrDefault(c => c.ClientId == req.ClientId);
+                    var svc = await CatalogService.GetRequestServicesAsync(req.RequestId);
+                    await bot.SendMessage(chatId,
+                        $"• {cl?.FirstName} @{cl?.TelegramUsername}\n{string.Join(", ", svc.Select(s => s.Name))}\n{req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}",
+                        cancellationToken: ct);
+                }
+                return;
             }
+
+            await bot.SendMessage(chatId, "Активных записей нет.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
         }
     }
 }

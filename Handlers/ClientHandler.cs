@@ -70,12 +70,23 @@ namespace TelegramBot.Handlers
         private static async Task ShowClientRecordsAsync(ITelegramBotClient bot, long chatId, long userId, CancellationToken ct)
         {
             var requests = await RequestService.GetByClientTelegramIdAsync(userId);
+            var appts = await AppointmentService.GetByClientTelegramIdAsync(userId);
             var session = State.SessionStore.GetOrCreate(chatId);
             session.CachedRequestIds = requests.Select(r => r.RequestId).ToList();
 
-            if (!requests.Any())
+            if (!requests.Any() && !appts.Any())
             {
-                await bot.SendMessage(chatId, "У вас нет активных записей.", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                await bot.SendMessage(chatId, "У вас нет активных записей.", replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)), cancellationToken: ct);
+                return;
+            }
+
+            if (!requests.Any() && appts.Any())
+            {
+                await bot.SendMessage(chatId, "📋 Ваши записи:", cancellationToken: ct);
+                foreach (var apt in appts)
+                {
+                    await bot.SendMessage(chatId, $"✅ Запись подтверждена (ID: {apt.AppointmentId:N})", cancellationToken: ct);
+                }
                 return;
             }
 

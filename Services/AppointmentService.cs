@@ -9,7 +9,8 @@ namespace TelegramBot.Services
         {
             var res = await SupabaseConfig.GetClient().From<Appointment>().Get();
             return (res.Models ?? new List<Appointment>())
-                .Where(a => a.Status == AppointmentStatus.Confirmed)
+                .Where(a => IsActiveStatus(a.Status))
+                .OrderByDescending(a => a.AppointmentId)
                 .ToList();
         }
 
@@ -18,19 +19,15 @@ namespace TelegramBot.Services
             var client = await ClientService.GetByTelegramIdAsync(telegramId);
             if (client == null) return new List<Appointment>();
 
-            var res = await SupabaseConfig.GetClient()
-                .From<Appointment>()
-                .Where(a => a.ClientId == client.ClientId)
-                .Get();
-
+            var res = await SupabaseConfig.GetClient().From<Appointment>().Get();
             return (res.Models ?? new List<Appointment>())
-                .Where(a => a.Status == AppointmentStatus.Confirmed)
+                .Where(a => a.ClientId == client.ClientId && IsActiveStatus(a.Status))
                 .ToList();
         }
 
         public static async Task<Appointment?> CreateFromRequestAsync(Request request, Guid masterId, Guid workingDateId, Guid timeSlotId)
         {
-            foreach (var status in new[] { AppointmentStatus.Confirmed, "CONFIRMED", "confirmed" })
+            foreach (var status in new[] { AppointmentStatus.Confirmed, "confirmed", "CONFIRMED", "active" })
             {
                 try
                 {
@@ -48,6 +45,11 @@ namespace TelegramBot.Services
                     var created = res.Models?.FirstOrDefault();
                     if (created != null)
                         return created;
+
+                    var all = await SupabaseConfig.GetClient().From<Appointment>().Get();
+                    created = all.Models?.FirstOrDefault(a => a.RequestId == request.RequestId);
+                    if (created != null)
+                        return created;
                 }
                 catch (Exception ex)
                 {
@@ -59,12 +61,21 @@ namespace TelegramBot.Services
 
         public static async Task<bool> MarkCompletedAsync(Guid appointmentId)
         {
-            var res = await SupabaseConfig.GetClient()
-                .From<Appointment>()
-                .Where(a => a.AppointmentId == appointmentId)
-                .Set(a => a.Status, AppointmentStatus.Completed)
-                .Update();
-            return res.Models?.Count > 0;
+            foreach (var status in new[] { AppointmentStatus.Completed, "completed", "COMPLETED" })
+            {
+                try
+                {
+                    var res = await SupabaseConfig.GetClient()
+                        .From<Appointment>()
+                        .Where(a => a.AppointmentId == appointmentId)
+                        .Set(a => a.Status, status)
+                        .Update();
+                    if (res.Models?.Count > 0)
+                        return true;
+                }
+                catch { }
+            }
+            return false;
         }
 
         public static async Task<bool> CancelAsync(Guid appointmentId)
@@ -75,6 +86,12 @@ namespace TelegramBot.Services
                 .Set(a => a.Status, AppointmentStatus.Cancelled)
                 .Update();
             return res.Models?.Count > 0;
+        }
+
+        private static bool IsActiveStatus(string? status)
+        {
+            var s = (status ?? "").Trim().ToLowerInvariant();
+            return s is "confirmed" or "active" or "pending" or "approved";
         }
     }
 }

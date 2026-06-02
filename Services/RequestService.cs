@@ -15,6 +15,15 @@ namespace TelegramBot.Services
             "PENDING"
         };
 
+        public static async Task<List<Request>> GetApprovedRequestsAsync()
+        {
+            var response = await SupabaseConfig.GetClient().From<Request>().Get();
+            return (response.Models ?? new List<Request>())
+                .Where(r => IsApprovedStatus(r.Status))
+                .OrderByDescending(r => r.CreatedAt)
+                .ToList();
+        }
+
         public static async Task<List<Request>> GetPendingRequestsAsync()
         {
             var response = await SupabaseConfig.GetClient().From<Request>().Get();
