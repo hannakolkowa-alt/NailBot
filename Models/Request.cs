@@ -27,7 +27,7 @@ namespace TelegramBot.Models
         public string Comment { get; set; }
 
         [Column("status")]
-        public string Status { get; set; } = "PENDING";
+        public string Status { get; set; } = "pending";
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }

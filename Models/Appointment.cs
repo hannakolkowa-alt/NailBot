@@ -30,6 +30,6 @@ namespace TelegramBot.Models
         public Guid TimeSlotId { get; set; }
 
         [Column("status")]
-        public string Status { get; set; } = "CONFIRMED";
+        public string Status { get; set; } = "confirmed";
     }
 }

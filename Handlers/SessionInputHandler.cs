@@ -161,6 +161,12 @@ namespace TelegramBot.Handlers
                     return true;
 
                 case SessionState.Admin_Schedule_Date:
+                    if (IsScheduleDone(text))
+                    {
+                        await FinishScheduleAsync(bot, chatId, session, ct);
+                        return true;
+                    }
+
                     if (TryParseScheduleDateWithTimes(text, out var date, out var times))
                     {
                         var masterQuick = await MasterService.EnsureMasterExistsAsync("Мастер", null);
@@ -205,14 +211,7 @@ namespace TelegramBot.Handlers
                 case SessionState.Admin_Schedule_Time:
                     if (IsScheduleDone(text))
                     {
-                        var savedDate = session.Booking.WorkingDateId;
-                        SessionStore.Reset(chatId);
-                        await bot.SendMessage(chatId,
-                            savedDate.HasValue
-                                ? "✅ Расписание сохранено. Клиенты увидят дату при записи.\nДобавить ещё — /master или «Расписание»."
-                                : "Готово.",
-                            replyMarkup: Keyboards.CreateAdminMenuKeyboard(),
-                            cancellationToken: ct);
+                        await FinishScheduleAsync(bot, chatId, session, ct);
                         return true;
                     }
                     if (!TryParseScheduleTime(text, out var time))
@@ -243,8 +242,12 @@ namespace TelegramBot.Handlers
                     }
                     catch (Exception ex)
                     {
+                        var hint = ex.Message.Contains("23505", StringComparison.Ordinal) ||
+                                   ex.Message.Contains("time_slots_время_key", StringComparison.Ordinal)
+                            ? "\n\nВ Supabase выполните supabase_fix_time_slots.sql (удалит неверный UNIQUE на time)."
+                            : "\n\nSQL Editor → supabase_fix_time_slots.sql";
                         await bot.SendMessage(chatId,
-                            $"⚠️ Слот не сохранён: {ex.Message}\n\nSQL Editor → supabase_fix_time_slots.sql → Run",
+                            $"⚠️ Слот не сохранён: {ex.Message}{hint}",
                             cancellationToken: ct);
                     }
                     return true;
@@ -290,6 +293,16 @@ namespace TelegramBot.Handlers
         {
             var t = text.Trim().ToLowerInvariant();
             return t is "готово" or "готово." or "done" or "ок" or "ok";
+        }
+
+        private static async Task FinishScheduleAsync(ITelegramBotClient bot, long chatId, UserSession session, CancellationToken ct)
+        {
+            var hadDate = session.Booking.WorkingDateId.HasValue;
+            SessionStore.Reset(chatId);
+            var msg = hadDate
+                ? "✅ Расписание сохранено. Клиенты увидят дату при записи.\nДобавить ещё — /master или «Расписание»."
+                : "Готово. Чтобы добавить день — «Расписание» или /master.";
+            await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
         }
 
         private static bool IsScheduleCancel(string text)

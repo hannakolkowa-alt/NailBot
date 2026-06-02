@@ -37,7 +37,7 @@ namespace TelegramBot.Services
                 .Get();
 
             var active = (appts.Models ?? new List<Appointment>())
-                .Where(a => a.Status is "CONFIRMED" or "COMPLETED")
+                .Where(a => a.Status is "confirmed" or "completed")
                 .Select(a => a.TimeSlotId)
                 .ToHashSet();
 
@@ -66,6 +66,19 @@ namespace TelegramBot.Services
             LastSlotError = null;
             try
             {
+                var existing = await GetFreeSlotsAsync(workingDateId);
+                var sameTime = existing.FirstOrDefault(s => s.Time == time);
+                if (sameTime != null)
+                    return sameTime;
+
+                var allOnDate = await SupabaseConfig.GetClient()
+                    .From<TimeSlot>()
+                    .Where(s => s.WorkingDateId == workingDateId)
+                    .Get();
+                var booked = allOnDate.Models?.FirstOrDefault(s => s.Time == time);
+                if (booked != null)
+                    return booked;
+
                 var slot = new TimeSlot
                 {
                     TimeSlotId = Guid.NewGuid(),
@@ -83,7 +96,24 @@ namespace TelegramBot.Services
             }
             catch (Exception ex)
             {
-                LastSlotError = ex.Message;
+                if (ex.Message.Contains("23505", StringComparison.Ordinal) ||
+                    ex.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase))
+                {
+                    var all = await SupabaseConfig.GetClient()
+                        .From<TimeSlot>()
+                        .Where(s => s.WorkingDateId == workingDateId)
+                        .Get();
+                    var dup = all.Models?.FirstOrDefault(s => s.Time == time);
+                    if (dup != null)
+                        return dup;
+
+                    LastSlotError = "В Supabase удалите ограничение time_slots_время_key — выполните supabase_fix_time_slots.sql";
+                }
+                else
+                {
+                    LastSlotError = ex.Message;
+                }
+
                 Console.WriteLine($"AddTimeSlot error: {ex}");
                 throw;
             }

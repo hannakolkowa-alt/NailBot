@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS requests (
     desired_date date,
     desired_time time,
     comment text DEFAULT '',
-    status text DEFAULT 'PENDING',
+    status text DEFAULT 'pending',
     created_at timestamptz DEFAULT now()
 );
 
@@ -35,7 +35,7 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS client_id uuid;
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS desired_date date;
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS desired_time time;
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS comment text;
-ALTER TABLE requests ADD COLUMN IF NOT EXISTS status text DEFAULT 'PENDING';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS status text DEFAULT 'pending';
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 
 ALTER TABLE request_items ADD COLUMN IF NOT EXISTS request_id uuid;

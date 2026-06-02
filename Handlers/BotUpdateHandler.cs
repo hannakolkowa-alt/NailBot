@@ -40,7 +40,15 @@ namespace TelegramBot.Handlers
 
                 if (MenuTexts.IsMenuButton(normalized))
                 {
-                    SessionStore.Reset(chatId);
+                    var session = SessionStore.GetOrCreate(chatId);
+                    var keepScheduleSession = isAdmin
+                        && (normalized is "расписание" or "график")
+                        && (session.State is SessionState.Admin_Schedule_Date or SessionState.Admin_Schedule_Time
+                            || session.Booking.WorkingDateId.HasValue);
+
+                    if (!keepScheduleSession)
+                        SessionStore.Reset(chatId);
+
                     if (MenuTexts.IsClientOnlyButton(normalized))
                     {
                         await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);

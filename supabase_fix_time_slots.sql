@@ -40,6 +40,16 @@ EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'PK time_slots: %', SQLERRM;
 END $$;
 
+-- Удалить НЕВЕРНЫЙ уникальный индекс только на time (мешает 10:00 на разных датах)
+ALTER TABLE time_slots DROP CONSTRAINT IF EXISTS time_slots_время_key;
+ALTER TABLE time_slots DROP CONSTRAINT IF EXISTS time_slots_time_key;
+ALTER TABLE time_slots DROP CONSTRAINT IF EXISTS "time_slots_время_key";
+
+-- Правильно: одно время нельзя дважды на ОДНУ дату, но на разные даты — можно
+DROP INDEX IF EXISTS time_slots_working_date_time_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS time_slots_working_date_time_unique
+    ON time_slots (working_date_id, time);
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON time_slots TO anon, authenticated;
 GRANT ALL ON time_slots TO service_role;
 ALTER TABLE time_slots DISABLE ROW LEVEL SECURITY;
