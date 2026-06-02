@@ -1,6 +1,7 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramBot.Flows;
+using TelegramBot.Helpers;
 using TelegramBot.Services;
 using TelegramBot.UI;
 
@@ -10,7 +11,7 @@ namespace TelegramBot.Handlers
     {
         public static async Task HandleAsync(ITelegramBotClient botClient, long chatId, long userId, string text, CancellationToken ct)
         {
-            var kb = Keyboards.CreateMainMenuKeyboard();
+            var kb = Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId));
 
             switch (text)
             {

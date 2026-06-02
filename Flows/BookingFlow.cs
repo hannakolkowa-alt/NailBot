@@ -1,5 +1,6 @@
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramBot.Helpers;
 using TelegramBot.Services;
 using TelegramBot.State;
 using TelegramBot.UI;
@@ -197,13 +198,15 @@ namespace TelegramBot.Flows
                     : string.IsNullOrWhiteSpace(detail)
                     ? "Ошибка при создании заявки. Выпabase: supabase_booking_tables.sql + supabase_fix_requests_status.sql"
                     : $"Ошибка заявки: {detail}";
-                await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                await bot.SendMessage(chatId, msg,
+                    replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(chatId)),
+                    cancellationToken: ct);
                 return;
             }
 
             await bot.SendMessage(chatId,
                 "✅ Заявка отправлена мастеру на подтверждение!",
-                replyMarkup: Keyboards.CreateMainMenuKeyboard(),
+                replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(chatId)),
                 cancellationToken: ct);
 
             try
