@@ -7,11 +7,19 @@ namespace TelegramBot.Services
     {
         public static string? LastCreateError { get; private set; }
 
+        private static readonly string[] StatusInsertCandidates =
+        {
+            RequestStatus.Pending,
+            "new",
+            "created",
+            "PENDING"
+        };
+
         public static async Task<List<Request>> GetPendingRequestsAsync()
         {
             var response = await SupabaseConfig.GetClient().From<Request>().Get();
             return (response.Models ?? new List<Request>())
-                .Where(r => r.Status == RequestStatus.Pending)
+                .Where(r => IsPendingStatus(r.Status))
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
         }
@@ -23,7 +31,7 @@ namespace TelegramBot.Services
 
             var res = await SupabaseConfig.GetClient().From<Request>().Where(r => r.ClientId == client.ClientId).Get();
             return (res.Models ?? new List<Request>())
-                .Where(r => r.Status is RequestStatus.Pending or RequestStatus.Approved)
+                .Where(r => IsPendingStatus(r.Status) || IsApprovedStatus(r.Status))
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
         }
@@ -38,12 +46,13 @@ namespace TelegramBot.Services
         {
             try
             {
+                var status = NormalizeStatus(newStatus);
                 if (comment != null)
                 {
                     var res = await SupabaseConfig.GetClient()
                         .From<Request>()
                         .Where(r => r.RequestId == requestId)
-                        .Set(r => r.Status, newStatus)
+                        .Set(r => r.Status, status)
                         .Set(r => r.Comment, comment)
                         .Update();
                     return res.Models?.Count > 0;
@@ -52,7 +61,7 @@ namespace TelegramBot.Services
                 var response = await SupabaseConfig.GetClient()
                     .From<Request>()
                     .Where(r => r.RequestId == requestId)
-                    .Set(r => r.Status, newStatus)
+                    .Set(r => r.Status, status)
                     .Update();
                 return response.Models?.Count > 0;
             }
@@ -80,23 +89,43 @@ namespace TelegramBot.Services
                 }
 
                 var client = await ClientService.GetOrCreateAsync(telegramId, firstName, username);
+                var requestId = Guid.NewGuid();
 
-                var newRequest = new Request
+                Request? createdRequest = null;
+                Exception? lastEx = null;
+
+                foreach (var status in StatusInsertCandidates)
                 {
-                    RequestId = Guid.NewGuid(),
-                    ClientId = client.ClientId,
-                    DesiredDate = desiredDate,
-                    DesiredTime = desiredTime,
-                    Comment = contactInfo ?? "",
-                    Status = RequestStatus.Pending,
-                    CreatedAt = DateTime.UtcNow
-                };
+                    try
+                    {
+                        var newRequest = new Request
+                        {
+                            RequestId = requestId,
+                            ClientId = client.ClientId,
+                            DesiredDate = desiredDate,
+                            DesiredTime = desiredTime,
+                            Comment = contactInfo ?? "",
+                            Status = NormalizeStatus(status),
+                            CreatedAt = DateTime.UtcNow
+                        };
 
-                var requestResponse = await SupabaseConfig.GetClient().From<Request>().Insert(newRequest);
-                var createdRequest = requestResponse.Models?.FirstOrDefault();
+                        var requestResponse = await SupabaseConfig.GetClient().From<Request>().Insert(newRequest);
+                        createdRequest = requestResponse.Models?.FirstOrDefault();
+                        if (createdRequest != null)
+                            break;
+                    }
+                    catch (Exception ex) when (IsStatusConstraintError(ex))
+                    {
+                        lastEx = ex;
+                        Console.WriteLine($"CreateRequest status '{status}' rejected: {ex.Message}");
+                    }
+                }
+
                 if (createdRequest == null)
                 {
-                    LastCreateError = "Не удалось сохранить заявку (таблица requests). Выполните supabase_booking_tables.sql";
+                    LastCreateError = lastEx != null
+                        ? $"{lastEx.Message}\n\nВ Supabase SQL Editor выполните supabase_fix_requests_status.sql (удалить CHECK) и Redeploy на Render."
+                        : "Не удалось сохранить заявку. Выполните supabase_fix_requests_status.sql";
                     return null;
                 }
 
@@ -151,5 +180,21 @@ namespace TelegramBot.Services
             var time = request.DesiredTime?.ToString("HH:mm") ?? "—";
             return $"Услуги: {services}.\nЗапись на дату {date} время {time}.\nДанные для связи: {request.Comment}";
         }
+
+        private static string NormalizeStatus(string status) => status.Trim().ToLowerInvariant();
+
+        private static bool IsStatusConstraintError(Exception ex) =>
+            ex.Message.Contains("23514", StringComparison.Ordinal) ||
+            ex.Message.Contains("requests_status_check", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("check constraint", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsPendingStatus(string? status) =>
+            string.Equals(NormalizeStatus(status ?? ""), RequestStatus.Pending, StringComparison.Ordinal)
+            || string.Equals(status, "PENDING", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "new", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsApprovedStatus(string? status) =>
+            string.Equals(NormalizeStatus(status ?? ""), RequestStatus.Approved, StringComparison.Ordinal)
+            || string.Equals(status, "APPROVED", StringComparison.OrdinalIgnoreCase);
     }
 }

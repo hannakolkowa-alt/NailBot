@@ -167,8 +167,8 @@ namespace TelegramBot.Handlers
                 {
                     new[]
                     {
-                        InlineKeyboardButton.WithCallbackData("✅ Одобрить", $"req_ok:{i}"),
-                        InlineKeyboardButton.WithCallbackData("❌ Отклонить", $"req_no:{i}")
+                        InlineKeyboardButton.WithCallbackData("✅ Одобрить", $"req_ok:{req.RequestId}"),
+                        InlineKeyboardButton.WithCallbackData("❌ Отклонить", $"req_no:{req.RequestId}")
                     }
                 };
                 await bot.SendMessage(chatId, msg, replyMarkup: new InlineKeyboardMarkup(rows), cancellationToken: ct);

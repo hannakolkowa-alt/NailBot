@@ -190,9 +190,12 @@ namespace TelegramBot.Flows
 
             if (requestId == null)
             {
-                var detail = RequestService.LastCreateError;
-                var msg = string.IsNullOrWhiteSpace(detail)
-                    ? "Ошибка при создании заявки. В Supabase выполните supabase_booking_tables.sql"
+                var detail = RequestService.LastCreateError ?? "";
+                var msg = detail.Contains("requests_status_check", StringComparison.OrdinalIgnoreCase) ||
+                          detail.Contains("23514", StringComparison.Ordinal)
+                    ? "⚠️ Ошибка статуса заявки в Supabase.\n\n1) SQL Editor → выполните supabase_fix_requests_status.sql\n2) Render → Manual Deploy (новый код)\n3) Снова «Подтвердить»"
+                    : string.IsNullOrWhiteSpace(detail)
+                    ? "Ошибка при создании заявки. Выпabase: supabase_booking_tables.sql + supabase_fix_requests_status.sql"
                     : $"Ошибка заявки: {detail}";
                 await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
                 return;

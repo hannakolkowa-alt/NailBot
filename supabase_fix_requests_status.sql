@@ -1,8 +1,19 @@
--- Если заявка падает с requests_status_check — выполните в SQL Editor
+-- ОБЯЗАТЕЛЬНО: выполните целиком, если «requests_status_check» при подтверждении заявки
+-- Удаляет ВСЕ check-ограничения на таблице requests (старые схемы курсовых проектов)
 
-ALTER TABLE requests DROP CONSTRAINT IF EXISTS requests_status_check;
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT conname
+    FROM pg_constraint
+    WHERE conrelid = 'public.requests'::regclass AND contype = 'c'
+  LOOP
+    EXECUTE format('ALTER TABLE requests DROP CONSTRAINT IF EXISTS %I', r.conname);
+  END LOOP;
+END $$;
 
-ALTER TABLE requests ADD CONSTRAINT requests_status_check
-    CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled'));
+ALTER TABLE requests ALTER COLUMN status SET DEFAULT 'pending';
+UPDATE requests SET status = lower(trim(status)) WHERE status IS NOT NULL;
 
-UPDATE requests SET status = lower(status) WHERE status IS NOT NULL;
+-- Не добавляем жёсткий CHECK — бот использует pending/approved/rejected/cancelled

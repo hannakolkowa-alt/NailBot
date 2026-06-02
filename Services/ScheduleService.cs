@@ -14,6 +14,15 @@ namespace TelegramBot.Services
                 .ToList();
         }
 
+        public static async Task<List<TimeSlot>> GetSlotsForWorkingDateAsync(Guid workingDateId)
+        {
+            var slots = await SupabaseConfig.GetClient()
+                .From<TimeSlot>()
+                .Where(s => s.WorkingDateId == workingDateId)
+                .Get();
+            return (slots.Models ?? new List<TimeSlot>()).OrderBy(s => s.Time).ToList();
+        }
+
         public static async Task<List<TimeSlot>> GetFreeSlotsAsync(Guid workingDateId)
         {
             var slots = await SupabaseConfig.GetClient()

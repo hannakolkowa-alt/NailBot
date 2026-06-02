@@ -26,11 +26,12 @@ namespace TelegramBot.Handlers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Callback error [{data}]: {ex.Message}");
+                Console.WriteLine($"Callback error [{data}]: {ex}");
                 try
                 {
+                    var hint = ex.Message.Length > 300 ? ex.Message[..300] + "…" : ex.Message;
                     await bot.SendMessage(chatId,
-                        "⚠️ Не удалось обработать кнопку. Нажмите /start или «◀️ Меню».",
+                        $"⚠️ Ошибка кнопки:\n{hint}\n\n/start или «Заявки» снова.",
                         cancellationToken: ct);
                 }
                 catch { }
@@ -124,17 +125,24 @@ namespace TelegramBot.Handlers
             if (data.StartsWith("req_ok:"))
             {
                 if (!isAdmin) return;
-                if (!int.TryParse(data[7..], out var ri) || ri >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
-                var reqId = session.CachedRequestIds[ri];
-                await ApproveRequestAsync(bot, chatId, reqId, ct);
+                if (!TryResolveRequestId(data, "req_ok:", session, out var reqIdOk))
+                {
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
+                await ApproveRequestAsync(bot, chatId, reqIdOk, ct);
                 return;
             }
 
             if (data.StartsWith("req_no:"))
             {
                 if (!isAdmin) return;
-                if (!int.TryParse(data[7..], out var rj) || rj >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
-                session.TargetRequestId = session.CachedRequestIds[rj];
+                if (!TryResolveRequestId(data, "req_no:", session, out var reqIdNo))
+                {
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
+                session.TargetRequestId = reqIdNo;
                 session.State = SessionState.Admin_RejectReason;
                 await bot.SendMessage(chatId, "Укажите причину отклонения заявки:", cancellationToken: ct);
                 return;
@@ -205,38 +213,77 @@ namespace TelegramBot.Handlers
                 cancellationToken: ct);
         }
 
+        private static bool TryResolveRequestId(string data, string prefix, UserSession session, out Guid requestId)
+        {
+            requestId = default;
+            var payload = data[prefix.Length..];
+            if (Guid.TryParse(payload, out requestId))
+                return true;
+
+            if (int.TryParse(payload, out var idx) && idx >= 0 && idx < session.CachedRequestIds.Count)
+            {
+                requestId = session.CachedRequestIds[idx];
+                return true;
+            }
+
+            return false;
+        }
+
         private static async Task ApproveRequestAsync(ITelegramBotClient bot, long adminChatId, Guid requestId, CancellationToken ct)
         {
             var request = await RequestService.GetByIdAsync(requestId);
-            if (request == null) return;
-
-            var master = await MasterService.GetMasterProfileAsync();
-            if (master == null)
+            if (request == null)
             {
-                await bot.SendMessage(adminChatId, "Сначала создайте профиль мастера.", cancellationToken: ct);
+                await bot.SendMessage(adminChatId, "Заявка не найдена.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                return;
+            }
+
+            var master = await MasterService.EnsureMasterExistsAsync("Мастер", null);
+
+            if (!request.DesiredDate.HasValue)
+            {
+                await bot.SendMessage(adminChatId, "В заявке нет даты.", cancellationToken: ct);
                 return;
             }
 
             var wd = (await ScheduleService.GetWorkingDatesAsync(DateOnly.MinValue, DateOnly.MaxValue))
                 .FirstOrDefault(w => w.Date == request.DesiredDate);
+            wd ??= await ScheduleService.AddWorkingDateAsync(master.MasterId, request.DesiredDate.Value);
             if (wd == null)
             {
-                await bot.SendMessage(adminChatId, "Дата записи не найдена в расписании.", cancellationToken: ct);
+                await bot.SendMessage(adminChatId, "Не удалось создать дату в расписании.", cancellationToken: ct);
                 return;
             }
 
-            var slots = await ScheduleService.GetFreeSlotsAsync(wd.DateId);
-            var slot = slots.FirstOrDefault(s => s.Time == request.DesiredTime)
-                ?? slots.FirstOrDefault();
+            var allSlots = await ScheduleService.GetSlotsForWorkingDateAsync(wd.DateId);
+            var slot = allSlots.FirstOrDefault(s => request.DesiredTime.HasValue && s.Time == request.DesiredTime.Value)
+                ?? allSlots.FirstOrDefault();
+
+            if (slot == null && request.DesiredTime.HasValue)
+                slot = await ScheduleService.AddTimeSlotAsync(wd.DateId, request.DesiredTime.Value);
 
             if (slot == null)
             {
-                await bot.SendMessage(adminChatId, "Нет свободного слота на это время.", cancellationToken: ct);
+                await bot.SendMessage(adminChatId, "Нет слота на это время. Добавьте время в «Расписание».", cancellationToken: ct);
                 return;
             }
 
-            await RequestService.UpdateRequestStatusAsync(requestId, RequestStatus.Approved);
-            await AppointmentService.CreateFromRequestAsync(request, master.MasterId, wd.DateId, slot.TimeSlotId);
+            if (!await RequestService.UpdateRequestStatusAsync(requestId, RequestStatus.Approved))
+            {
+                await bot.SendMessage(adminChatId,
+                    "Не удалось обновить статус. Выполните supabase_fix_requests_status.sql в Supabase.",
+                    cancellationToken: ct);
+                return;
+            }
+
+            var appt = await AppointmentService.CreateFromRequestAsync(request, master.MasterId, wd.DateId, slot.TimeSlotId);
+            if (appt == null)
+            {
+                await bot.SendMessage(adminChatId,
+                    "Статус обновлён, но запись не создана. Выполните supabase_appointments.sql в Supabase.",
+                    cancellationToken: ct);
+                return;
+            }
 
             var client = (await ClientService.GetAllClientsAsync()).FirstOrDefault(c => c.ClientId == request.ClientId);
             if (client != null)
@@ -250,7 +297,7 @@ namespace TelegramBot.Handlers
                 catch { }
             }
 
-            await bot.SendMessage(adminChatId, "Заявка одобрена, запись создана.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+            await bot.SendMessage(adminChatId, "✅ Заявка одобрена, запись создана.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
         }
 
         private static async Task MarkAppointmentDoneAsync(ITelegramBotClient bot, long adminChatId, Guid appointmentId, CancellationToken ct)

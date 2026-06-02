@@ -30,18 +30,31 @@ namespace TelegramBot.Services
 
         public static async Task<Appointment?> CreateFromRequestAsync(Request request, Guid masterId, Guid workingDateId, Guid timeSlotId)
         {
-            var appt = new Appointment
+            foreach (var status in new[] { AppointmentStatus.Confirmed, "CONFIRMED", "confirmed" })
             {
-                AppointmentId = Guid.NewGuid(),
-                RequestId = request.RequestId,
-                ClientId = request.ClientId,
-                MasterId = masterId,
-                WorkingDateId = workingDateId,
-                TimeSlotId = timeSlotId,
-                Status = AppointmentStatus.Confirmed
-            };
-            var res = await SupabaseConfig.GetClient().From<Appointment>().Insert(appt);
-            return res.Models?.FirstOrDefault();
+                try
+                {
+                    var appt = new Appointment
+                    {
+                        AppointmentId = Guid.NewGuid(),
+                        RequestId = request.RequestId,
+                        ClientId = request.ClientId,
+                        MasterId = masterId,
+                        WorkingDateId = workingDateId,
+                        TimeSlotId = timeSlotId,
+                        Status = status
+                    };
+                    var res = await SupabaseConfig.GetClient().From<Appointment>().Insert(appt);
+                    var created = res.Models?.FirstOrDefault();
+                    if (created != null)
+                        return created;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Appointment insert status={status}: {ex.Message}");
+                }
+            }
+            return null;
         }
 
         public static async Task<bool> MarkCompletedAsync(Guid appointmentId)
