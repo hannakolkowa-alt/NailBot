@@ -1,8 +1,8 @@
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
-using TelegramBot;
 using TelegramBot.Constants;
+using TelegramBot.Helpers;
 using TelegramBot.Flows;
 using TelegramBot.Services;
 using TelegramBot.State;
@@ -17,12 +17,12 @@ namespace TelegramBot.Handlers
             var data = cq.Data ?? "";
             var chatId = cq.Message?.Chat.Id ?? cq.From.Id;
             var userId = cq.From.Id;
-            var isAdmin = BotConfig.IsMaster(userId);
+            var isMasterAccount = RoleHelper.IsMasterAccount(userId);
 
             try
             {
                 await bot.AnswerCallbackQuery(cq.Id, cancellationToken: ct);
-                await HandleCallbackCoreAsync(bot, chatId, userId, isAdmin, data, cq.From.Username, cq.From.FirstName, ct);
+                await HandleCallbackCoreAsync(bot, chatId, userId, isMasterAccount, data, cq.From.Username, cq.From.FirstName, ct);
             }
             catch (Exception ex)
             {
@@ -38,7 +38,7 @@ namespace TelegramBot.Handlers
             }
         }
 
-        private static async Task HandleCallbackCoreAsync(ITelegramBotClient bot, long chatId, long userId, bool isAdmin, string data, string? username, string? firstName, CancellationToken ct)
+        private static async Task HandleCallbackCoreAsync(ITelegramBotClient bot, long chatId, long userId, bool isMasterAccount, string data, string? username, string? firstName, CancellationToken ct)
         {
             var session = SessionStore.GetOrCreate(chatId);
 
@@ -124,7 +124,7 @@ namespace TelegramBot.Handlers
 
             if (data.StartsWith("req_ok:"))
             {
-                if (!isAdmin) return;
+                if (!isMasterAccount) return;
                 if (!TryResolveRequestId(data, "req_ok:", session, out var reqIdOk))
                 {
                     await StaleCallbackAsync(bot, chatId, ct);
@@ -136,7 +136,7 @@ namespace TelegramBot.Handlers
 
             if (data.StartsWith("req_no:"))
             {
-                if (!isAdmin) return;
+                if (!isMasterAccount) return;
                 if (!TryResolveRequestId(data, "req_no:", session, out var reqIdNo))
                 {
                     await StaleCallbackAsync(bot, chatId, ct);
@@ -150,7 +150,7 @@ namespace TelegramBot.Handlers
 
             if (data.StartsWith("apt_done:"))
             {
-                if (!isAdmin) return;
+                if (!isMasterAccount) return;
                 if (!int.TryParse(data[9..], out var ai) || ai >= session.CachedAppointmentIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
                 var aptId = session.CachedAppointmentIds[ai];
                 await MarkAppointmentDoneAsync(bot, chatId, aptId, ct);
@@ -181,7 +181,7 @@ namespace TelegramBot.Handlers
 
             if (data.StartsWith("cli_del:"))
             {
-                if (!isAdmin) return;
+                if (!isMasterAccount) return;
                 if (!int.TryParse(data[8..], out var di) || di >= session.CachedClientIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
                 var clientId = session.CachedClientIds[di];
                 await ClientService.DeleteClientAsync(clientId);
@@ -191,13 +191,13 @@ namespace TelegramBot.Handlers
 
             if (data == "cli_clear")
             {
-                if (!isAdmin) return;
+                if (!isMasterAccount) return;
                 await ClientService.ClearAllClientsAsync();
                 await bot.SendMessage(chatId, "Клиентская база очищена.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
                 return;
             }
 
-            if (data.StartsWith("prof:") && isAdmin)
+            if (data.StartsWith("prof:") && isMasterAccount)
             {
                 session.State = SessionState.Admin_EditProfile;
                 session.AdminEditField = data[5..];

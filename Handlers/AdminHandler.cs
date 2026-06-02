@@ -18,7 +18,7 @@ namespace TelegramBot.Handlers
                 case "◀️ меню":
                     SessionStore.Reset(chatId);
                     await botClient.SendMessage(chatId,
-                        "Меню мастера 👇\nКлиентское меню — /client",
+                        "Меню мастера 👇\n🧪 Клиент или /client — тест как клиент",
                         replyMarkup: kb,
                         cancellationToken: ct);
                     break;

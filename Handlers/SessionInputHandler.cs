@@ -1,5 +1,6 @@
 using Telegram.Bot;
 using TelegramBot.Constants;
+using TelegramBot.Helpers;
 using TelegramBot.Flows;
 using TelegramBot.Services;
 using TelegramBot.State;
@@ -9,7 +10,7 @@ namespace TelegramBot.Handlers
 {
     public static class SessionInputHandler
     {
-        public static async Task<bool> TryHandleAsync(ITelegramBotClient bot, long chatId, long userId, string text, bool isAdmin, CancellationToken ct)
+        public static async Task<bool> TryHandleAsync(ITelegramBotClient bot, long chatId, long userId, string text, bool actAsMaster, CancellationToken ct)
         {
             var session = SessionStore.GetOrCreate(chatId);
             if (session.State == SessionState.Idle) return false;
@@ -17,8 +18,10 @@ namespace TelegramBot.Handlers
             if (IsScheduleCancel(text))
             {
                 SessionStore.Reset(chatId);
-                var kb = isAdmin ? Keyboards.CreateAdminMenuKeyboard() : Keyboards.CreateMainMenuKeyboard();
-                await bot.SendMessage(chatId, "Ввод отменён. /master — панель мастера, /client — клиентское меню.", replyMarkup: kb, cancellationToken: ct);
+                var kb = actAsMaster
+                    ? Keyboards.CreateAdminMenuKeyboard()
+                    : Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId));
+                await bot.SendMessage(chatId, "Ввод отменён. /master | /client — смена роли.", replyMarkup: kb, cancellationToken: ct);
                 return true;
             }
 

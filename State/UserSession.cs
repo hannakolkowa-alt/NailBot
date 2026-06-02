@@ -25,6 +25,8 @@ namespace TelegramBot.State
     public class UserSession
     {
         public long ChatId { get; init; }
+        /// <summary>Для аккаунта мастера: true = панель мастера, false = тест как клиент.</summary>
+        public bool ActAsMasterPanel { get; set; } = true;
         public SessionState State { get; set; } = SessionState.Idle;
         public BookingDraft Booking { get; } = new();
         public Guid? TargetRequestId { get; set; }

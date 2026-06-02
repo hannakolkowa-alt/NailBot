@@ -13,6 +13,7 @@ namespace TelegramBot.State
         {
             if (_sessions.TryGetValue(chatId, out var s))
             {
+                var keepMasterPanel = s.ActAsMasterPanel;
                 s.State = SessionState.Idle;
                 s.Booking.SelectedServiceIds.Clear();
                 s.Booking.Date = null;
@@ -33,6 +34,7 @@ namespace TelegramBot.State
                 s.CachedRequestIds.Clear();
                 s.CachedAppointmentIds.Clear();
                 s.CachedClientIds.Clear();
+                s.ActAsMasterPanel = keepMasterPanel;
             }
         }
     }

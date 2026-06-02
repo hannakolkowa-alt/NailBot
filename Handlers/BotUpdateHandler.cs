@@ -1,6 +1,5 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Types;
-using TelegramBot;
 using TelegramBot.Helpers;
 using TelegramBot.State;
 using TelegramBot.UI;
@@ -24,24 +23,28 @@ namespace TelegramBot.Handlers
 
                 long chatId = message.Chat.Id;
                 long userId = message.From?.Id ?? chatId;
-                bool isAdmin = BotConfig.IsMaster(userId);
+                var isMasterAccount = RoleHelper.IsMasterAccount(userId);
+                var actAsMaster = RoleHelper.ActAsMaster(chatId, userId);
                 var normalized = MenuTexts.Normalize(text);
 
-                Console.WriteLine($"Получено от {chatId}: {text}");
+                Console.WriteLine($"Получено от {chatId}: {text} (роль: {RoleHelper.RoleLabel(chatId, userId)})");
 
                 if (normalized.StartsWith('/'))
                 {
                     SessionStore.Reset(chatId);
                     await CommandHandler.HandleAsync(
-                        botClient, chatId, userId, NormalizeCommand(text), isAdmin,
+                        botClient, chatId, userId, NormalizeCommand(text),
                         message.From?.FirstName, message.From?.Username, ct);
                     return;
                 }
 
+                if (await RoleSwitchHandler.TryHandleAsync(botClient, chatId, userId, normalized, ct))
+                    return;
+
                 if (MenuTexts.IsMenuButton(normalized))
                 {
                     var session = SessionStore.GetOrCreate(chatId);
-                    var keepScheduleSession = isAdmin
+                    var keepScheduleSession = actAsMaster
                         && (normalized is "расписание" or "график")
                         && (session.State is SessionState.Admin_Schedule_Date or SessionState.Admin_Schedule_Time
                             || session.Booking.WorkingDateId.HasValue);
@@ -49,23 +52,23 @@ namespace TelegramBot.Handlers
                     if (!keepScheduleSession)
                         SessionStore.Reset(chatId);
 
-                    if (MenuTexts.IsClientOnlyButton(normalized))
+                    if (actAsMaster && MenuTexts.IsClientOnlyButton(normalized))
                     {
                         await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
                         return;
                     }
 
-                    if (isAdmin)
+                    if (actAsMaster)
                         await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
                     else
                         await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
                     return;
                 }
 
-                if (await SessionInputHandler.TryHandleAsync(botClient, chatId, userId, text, isAdmin, ct))
+                if (await SessionInputHandler.TryHandleAsync(botClient, chatId, userId, text, actAsMaster, ct))
                     return;
 
-                if (isAdmin)
+                if (actAsMaster)
                     await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
                 else
                     await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
