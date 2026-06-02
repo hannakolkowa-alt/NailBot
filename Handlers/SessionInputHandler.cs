@@ -226,15 +226,27 @@ namespace TelegramBot.Handlers
                         await bot.SendMessage(chatId, "Сначала введите дату (ГГГГ-ММ-ДД):", cancellationToken: ct);
                         return true;
                     }
-                    var slot = await ScheduleService.AddTimeSlotAsync(session.Booking.WorkingDateId.Value, time);
-                    if (slot == null)
+                    try
                     {
-                        await bot.SendMessage(chatId, "Не удалось сохранить слот. Проверьте таблицу time_slots в Supabase.", cancellationToken: ct);
-                        return true;
+                        var slot = await ScheduleService.AddTimeSlotAsync(session.Booking.WorkingDateId.Value, time);
+                        if (slot == null)
+                        {
+                            var err = ScheduleService.LastSlotError ?? "неизвестная ошибка";
+                            await bot.SendMessage(chatId,
+                                $"Не удалось сохранить слот.\n{err}\n\nВ Supabase выполните supabase_fix_time_slots.sql",
+                                cancellationToken: ct);
+                            return true;
+                        }
+                        await bot.SendMessage(chatId,
+                            $"✅ Слот {time:HH:mm} сохранён.\nВведите ещё время или «готово»:",
+                            cancellationToken: ct);
                     }
-                    await bot.SendMessage(chatId,
-                        $"✅ Слот {time:HH:mm} сохранён.\nВведите ещё время или «готово»:",
-                        cancellationToken: ct);
+                    catch (Exception ex)
+                    {
+                        await bot.SendMessage(chatId,
+                            $"⚠️ Слот не сохранён: {ex.Message}\n\nSQL Editor → supabase_fix_time_slots.sql → Run",
+                            cancellationToken: ct);
+                    }
                     return true;
             }
 

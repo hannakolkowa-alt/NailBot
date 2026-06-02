@@ -17,8 +17,10 @@ namespace TelegramBot.Helpers
                     : ex.Message.Contains("masters", StringComparison.OrdinalIgnoreCase)
                     ? "⚠️ Таблица masters не совпадает с ботом.\n\n1) SQL Editor → выполните supabase_fix_masters.sql\n2) Settings → API → Reload schema\n3) Redeploy на Render → /master"
                     : ex.Message.Contains("working_dates", StringComparison.OrdinalIgnoreCase) ||
-                      ex.Message.Contains("time_slots", StringComparison.OrdinalIgnoreCase)
-                    ? "⚠️ Ошибка расписания.\nВыполните database_migration.sql и supabase_permissions.sql в Supabase."
+                      ex.Message.Contains("time_slots", StringComparison.OrdinalIgnoreCase) ||
+                      ex.Message.Contains("column \"time\"", StringComparison.OrdinalIgnoreCase) ||
+                      ex.Message.Contains("время", StringComparison.OrdinalIgnoreCase)
+                    ? "⚠️ Ошибка таблицы time_slots.\nВ Supabase SQL Editor выполните supabase_fix_time_slots.sql"
                     : $"⚠️ {Truncate(ex.Message, 350)}";
 
                 await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);

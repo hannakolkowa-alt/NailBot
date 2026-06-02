@@ -4,6 +4,7 @@ namespace TelegramBot.Services
 {
     public static class ScheduleService
     {
+        public static string? LastSlotError { get; private set; }
         public static async Task<List<WorkingDate>> GetWorkingDatesAsync(DateOnly from, DateOnly to)
         {
             var response = await SupabaseConfig.GetClient().From<WorkingDate>().Get();
@@ -62,15 +63,30 @@ namespace TelegramBot.Services
 
         public static async Task<TimeSlot?> AddTimeSlotAsync(Guid workingDateId, TimeOnly time)
         {
-            var slot = new TimeSlot
+            LastSlotError = null;
+            try
             {
-                TimeSlotId = Guid.NewGuid(),
-                WorkingDateId = workingDateId,
-                Time = time,
-                IsBooked = false
-            };
-            var res = await SupabaseConfig.GetClient().From<TimeSlot>().Insert(slot);
-            return res.Models?.FirstOrDefault();
+                var slot = new TimeSlot
+                {
+                    TimeSlotId = Guid.NewGuid(),
+                    WorkingDateId = workingDateId,
+                    Time = time,
+                    IsBooked = false
+                };
+                var res = await SupabaseConfig.GetClient().From<TimeSlot>().Insert(slot);
+                var created = res.Models?.FirstOrDefault();
+                if (created != null)
+                    return created;
+
+                LastSlotError = "Insert вернул пустой ответ. Выполните supabase_fix_time_slots.sql";
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LastSlotError = ex.Message;
+                Console.WriteLine($"AddTimeSlot error: {ex}");
+                throw;
+            }
         }
 
         public static async Task<string> FormatMonthScheduleAsync(int year, int month)
