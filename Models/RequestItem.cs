@@ -11,10 +11,10 @@ namespace TelegramBot.Models
     [Table("request_items")]
     public class RequestItem : BaseModel
     {
-        [PrimaryKey("request_id", false)]
+        [Column("request_id")]
         public Guid RequestId { get; set; }
 
-        [PrimaryKey("service_id", false)]
+        [Column("service_id")]
         public Guid ServiceId { get; set; }
 
         [Column("quantity")]

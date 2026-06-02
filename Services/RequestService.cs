@@ -5,6 +5,8 @@ namespace TelegramBot.Services
 {
     public static class RequestService
     {
+        public static string? LastCreateError { get; private set; }
+
         public static async Task<List<Request>> GetPendingRequestsAsync()
         {
             var response = await SupabaseConfig.GetClient().From<Request>().Get();
@@ -68,8 +70,15 @@ namespace TelegramBot.Services
             Guid? workingDateId = null,
             Guid? timeSlotId = null)
         {
+            LastCreateError = null;
             try
             {
+                if (serviceIds.Count == 0)
+                {
+                    LastCreateError = "Не выбраны услуги";
+                    return null;
+                }
+
                 var client = await ClientService.GetOrCreateAsync(telegramId, firstName, username);
 
                 var newRequest = new Request
@@ -78,35 +87,52 @@ namespace TelegramBot.Services
                     ClientId = client.ClientId,
                     DesiredDate = desiredDate,
                     DesiredTime = desiredTime,
-                    Comment = contactInfo,
+                    Comment = contactInfo ?? "",
                     Status = RequestStatus.Pending,
                     CreatedAt = DateTime.UtcNow
                 };
 
                 var requestResponse = await SupabaseConfig.GetClient().From<Request>().Insert(newRequest);
                 var createdRequest = requestResponse.Models?.FirstOrDefault();
-                if (createdRequest == null) return null;
+                if (createdRequest == null)
+                {
+                    LastCreateError = "Не удалось сохранить заявку (таблица requests). Выполните supabase_booking_tables.sql";
+                    return null;
+                }
 
                 foreach (var serviceId in serviceIds)
                 {
-                    var item = new RequestItem { RequestId = createdRequest.RequestId, ServiceId = serviceId, Quantity = 1 };
+                    var item = new RequestItem
+                    {
+                        RequestId = createdRequest.RequestId,
+                        ServiceId = serviceId,
+                        Quantity = 1
+                    };
                     await SupabaseConfig.GetClient().From<RequestItem>().Insert(item);
                 }
 
                 if (timeSlotId.HasValue)
                 {
-                    await SupabaseConfig.GetClient()
-                        .From<TimeSlot>()
-                        .Where(s => s.TimeSlotId == timeSlotId.Value)
-                        .Set(s => s.IsBooked, true)
-                        .Update();
+                    try
+                    {
+                        await SupabaseConfig.GetClient()
+                            .From<TimeSlot>()
+                            .Where(s => s.TimeSlotId == timeSlotId.Value)
+                            .Set(s => s.IsBooked, true)
+                            .Update();
+                    }
+                    catch (Exception slotEx)
+                    {
+                        Console.WriteLine($"TimeSlot mark booked warning: {slotEx.Message}");
+                    }
                 }
 
                 return createdRequest.RequestId;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"CreateRequest error: {ex.Message}");
+                LastCreateError = ex.Message;
+                Console.WriteLine($"CreateRequest error: {ex}");
                 return null;
             }
         }

@@ -190,7 +190,11 @@ namespace TelegramBot.Flows
 
             if (requestId == null)
             {
-                await bot.SendMessage(chatId, "Ошибка при создании заявки. Попробуйте позже.", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                var detail = RequestService.LastCreateError;
+                var msg = string.IsNullOrWhiteSpace(detail)
+                    ? "Ошибка при создании заявки. В Supabase выполните supabase_booking_tables.sql"
+                    : $"Ошибка заявки: {detail}";
+                await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
                 return;
             }
 
