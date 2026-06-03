@@ -72,19 +72,29 @@ namespace TelegramBot.Flows
                 comment = "";
 
             var client = await ClientService.GetOrCreateAsync(userId, null, null);
-            var ok = await ReviewService.AddAsync(
-                client.ClientId,
-                session.TargetAppointmentId,
-                session.ReviewDraftRating.Value,
-                comment);
-
             var starsLine = ReviewService.FormatStars(session.ReviewDraftRating);
+
+            bool ok;
+            try
+            {
+                ok = await ReviewService.AddAsync(
+                    client.ClientId,
+                    session.TargetAppointmentId,
+                    session.ReviewDraftRating.Value,
+                    comment);
+            }
+            catch (Exception ex)
+            {
+                ReviewService.LastAddError = ex.Message;
+                ok = false;
+            }
+
             SessionStore.Reset(chatId);
 
             if (!ok)
             {
-                await bot.SendMessage(chatId,
-                    "Не удалось сохранить отзыв (возможно, он уже есть).",
+                var err = ReviewService.GetClientErrorMessage(ReviewService.LastAddError);
+                await bot.SendMessage(chatId, err,
                     replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)),
                     cancellationToken: ct);
                 return true;
