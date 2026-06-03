@@ -14,9 +14,8 @@ namespace TelegramBot.Data
             var cats = await CatalogService.GetCategoriesAsync();
             var manicure = cats.FirstOrDefault(c => c.Name == CatalogService.ManicureCategoryName);
             var pedicure = cats.FirstOrDefault(c => c.Name == CatalogService.PedicureCategoryName);
-            var additional = cats.FirstOrDefault(c => c.Name == CatalogService.AdditionalCategoryName);
 
-            if (manicure == null || pedicure == null || additional == null) return;
+            if (manicure == null || pedicure == null) return;
 
             await CatalogService.AddServiceAsync(manicure.CategoryId,
                 "Гигиенический маникюр без покрытия",
@@ -45,11 +44,6 @@ namespace TelegramBot.Data
             await CatalogService.AddServiceAsync(pedicure.CategoryId,
                 "Гель-лак + педикюр",
                 "Покрытие: база + гель-лак + топ", 90, 2000);
-
-            await CatalogService.AddServiceAsync(additional.CategoryId, "Французский маникюр", "Дополнительная услуга", 15, 200);
-            await CatalogService.AddServiceAsync(additional.CategoryId, "Дизайн", "Рисунки, стразы, стэмпинг, фигурки", 30, 100);
-            await CatalogService.AddServiceAsync(additional.CategoryId, "Ремонт ногтя (до 3-х)", "Количество ногтей для ремонта до 3", 20, 300);
-            await CatalogService.AddServiceAsync(additional.CategoryId, "Ремонт ногтя (от 3-х)", "Количество ногтей для ремонта от 3", 40, 500);
 
             Console.WriteLine("Log: Каталог услуг заполнен начальными данными");
         }

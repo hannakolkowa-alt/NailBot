@@ -4,19 +4,21 @@ namespace TelegramBot.Services
 {
     public static class CatalogService
     {
-        public const string AdditionalCategoryName = "Дополнительно";
         public const string ManicureCategoryName = "Маникюр";
         public const string PedicureCategoryName = "Педикюр";
+
+        private const string DeprecatedAdditionalCategoryName = "Дополнительно";
 
         public static readonly IReadOnlyList<string> StaticCategoryNames = new[]
         {
             ManicureCategoryName,
-            PedicureCategoryName,
-            AdditionalCategoryName
+            PedicureCategoryName
         };
 
         public static async Task EnsureStaticCategoriesAsync()
         {
+            await RemoveDeprecatedAdditionalCategoryAsync();
+
             var res = await SupabaseConfig.GetClient().From<ServiceCategory>().Get();
             var existing = res.Models ?? new List<ServiceCategory>();
 
@@ -30,6 +32,33 @@ namespace TelegramBot.Services
                 var created = inserted.Models?.FirstOrDefault();
                 if (created != null)
                     existing.Add(created);
+            }
+        }
+
+        /// <summary>Удаляет устаревшую категорию «Дополнительно» и её услуги из БД.</summary>
+        public static async Task RemoveDeprecatedAdditionalCategoryAsync()
+        {
+            try
+            {
+                var res = await SupabaseConfig.GetClient().From<ServiceCategory>().Get();
+                var addCat = (res.Models ?? new List<ServiceCategory>())
+                    .FirstOrDefault(c => string.Equals(
+                        c.Name?.Trim(), DeprecatedAdditionalCategoryName, StringComparison.OrdinalIgnoreCase));
+                if (addCat == null)
+                    return;
+
+                var all = await GetAllServicesAsync();
+                foreach (var svc in all.Where(s => s.CategoryId == addCat.CategoryId))
+                    await DeleteServiceAsync(svc.ServiceId);
+
+                await SupabaseConfig.GetClient()
+                    .From<ServiceCategory>()
+                    .Where(c => c.CategoryId == addCat.CategoryId)
+                    .Delete();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"RemoveDeprecatedAdditionalCategoryAsync: {ex.Message}");
             }
         }
 
@@ -51,35 +80,10 @@ namespace TelegramBot.Services
             return response.Models ?? new List<Service>();
         }
 
-        public static async Task<List<Service>> GetByCategoryAsync(Guid categoryId, bool additionalOnly = false)
+        public static async Task<List<Service>> GetByCategoryAsync(Guid categoryId)
         {
             var all = await GetAllServicesAsync();
-            var cats = await GetCategoriesAsync();
-            var addCat = cats.FirstOrDefault(c => c.Name == AdditionalCategoryName);
-
-            if (additionalOnly && addCat != null)
-                return all.Where(s => s.CategoryId == addCat.CategoryId).ToList();
-
-            if (!additionalOnly && addCat != null)
-                return all.Where(s => s.CategoryId == categoryId && s.CategoryId != addCat.CategoryId).ToList();
-
             return all.Where(s => s.CategoryId == categoryId).ToList();
-        }
-
-        public static async Task<List<Service>> GetMainServicesAsync()
-        {
-            var cats = await GetCategoriesAsync();
-            var addId = cats.FirstOrDefault(c => c.Name == AdditionalCategoryName)?.CategoryId;
-            var all = await GetAllServicesAsync();
-            return all.Where(s => s.CategoryId != addId).ToList();
-        }
-
-        public static async Task<List<Service>> GetAdditionalServicesAsync()
-        {
-            var cats = await GetCategoriesAsync();
-            var addCat = cats.FirstOrDefault(c => c.Name == AdditionalCategoryName);
-            if (addCat == null) return new List<Service>();
-            return await GetByCategoryAsync(addCat.CategoryId);
         }
 
         public static async Task<List<Service>> GetRequestServicesAsync(Guid requestId)

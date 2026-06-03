@@ -1,5 +1,6 @@
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramBot.Constants;
 using TelegramBot.Helpers;
 using TelegramBot.Services;
 using TelegramBot.State;
@@ -17,10 +18,7 @@ namespace TelegramBot.Flows
 
             await CatalogService.EnsureStaticCategoriesAsync();
             var cats = await CatalogService.GetCategoriesAsync();
-            session.CachedCategoryIds = cats
-                .Where(c => c.Name != CatalogService.AdditionalCategoryName)
-                .Select(c => c.CategoryId)
-                .ToList();
+            session.CachedCategoryIds = cats.Select(c => c.CategoryId).ToList();
 
             if (!session.CachedCategoryIds.Any())
             {
@@ -31,8 +29,6 @@ namespace TelegramBot.Flows
             var rows = session.CachedCategoryIds.Select((id, i) =>
                 new[] { InlineKeyboardButton.WithCallbackData(
                     cats.First(c => c.CategoryId == id).Name, $"cat:{i}") }).ToArray();
-
-            rows = rows.Append(new[] { InlineKeyboardButton.WithCallbackData("Дополнительно", "add:menu") }).ToArray();
 
             await bot.SendMessage(chatId,
                 "💅 Выберите категорию услуг:",
@@ -56,7 +52,7 @@ namespace TelegramBot.Flows
                 var s = services[i];
                 var mark = session.Booking.SelectedServiceIds.Contains(s.ServiceId) ? "✅ " : "";
                 rows.Add(new[] { InlineKeyboardButton.WithCallbackData(
-                    $"{mark}{s.Name} — {s.Price}₽",
+                    $"{mark}{s.Name} — {PriceFormat.Format(s.Price)}",
                     $"svc:{i}") });
             }
 
@@ -67,24 +63,6 @@ namespace TelegramBot.Flows
                 "Выберите услугу (можно несколько). Нажмите снова, чтобы снять выбор:",
                 replyMarkup: new InlineKeyboardMarkup(rows),
                 cancellationToken: ct);
-        }
-
-        public static async Task ShowAdditionalAsync(ITelegramBotClient bot, long chatId, CancellationToken ct)
-        {
-            var session = SessionStore.GetOrCreate(chatId);
-            var services = await CatalogService.GetAdditionalServicesAsync();
-            session.CachedServiceIds = services.Select(s => s.ServiceId).ToList();
-
-            var rows = new List<InlineKeyboardButton[]>();
-            for (int i = 0; i < services.Count; i++)
-            {
-                var s = services[i];
-                var mark = session.Booking.SelectedServiceIds.Contains(s.ServiceId) ? "✅ " : "";
-                rows.Add(new[] { InlineKeyboardButton.WithCallbackData($"{mark}{s.Name}", $"add:{i}") });
-            }
-            rows.Add(new[] { InlineKeyboardButton.WithCallbackData("Готово → дата", "add:done") });
-
-            await bot.SendMessage(chatId, "➕ Дополнительные услуги:", replyMarkup: new InlineKeyboardMarkup(rows), cancellationToken: ct);
         }
 
         public static async Task ShowDatesAsync(ITelegramBotClient bot, long chatId, CancellationToken ct)

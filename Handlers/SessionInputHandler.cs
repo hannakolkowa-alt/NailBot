@@ -141,7 +141,7 @@ namespace TelegramBot.Handlers
                 case SessionState.Admin_Service_Description:
                     session.ServiceDraftDesc = text;
                     session.State = SessionState.Admin_Service_Price;
-                    await bot.SendMessage(chatId, "Цена (число):", cancellationToken: ct);
+                    await bot.SendMessage(chatId, "Цена в BYN (число):", cancellationToken: ct);
                     return true;
 
                 case SessionState.Admin_Service_Price:

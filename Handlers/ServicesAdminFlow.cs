@@ -1,5 +1,6 @@
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramBot.Constants;
 using TelegramBot.Services;
 using TelegramBot.State;
 using TelegramBot.UI;
@@ -22,7 +23,7 @@ namespace TelegramBot.Handlers
                     lines.Add($"📁 {cat.Name}: (пусто)");
                 else
                     foreach (var s in inCat)
-                        lines.Add($"• [{cat.Name}] {s.Name} — {s.Price}₽ ({s.DurationMinutes} мин)");
+                        lines.Add($"• [{cat.Name}] {s.Name} — {PriceFormat.Format(s.Price)} ({s.DurationMinutes} мин)");
             }
 
             var text = "💰 Услуги:\n" + (lines.Count > 0 ? string.Join("\n", lines) : "(пусто)");
@@ -49,7 +50,7 @@ namespace TelegramBot.Handlers
                 new[] { InlineKeyboardButton.WithCallbackData(c.Name, $"adm_cat:{i}") }).ToArray();
 
             await bot.SendMessage(chatId,
-                "📁 Выберите категорию для новой услуги:\n(Маникюр, Педикюр или Дополнительно)",
+                "📁 Выберите категорию для новой услуги:\n(Маникюр или Педикюр)",
                 replyMarkup: new InlineKeyboardMarkup(rows),
                 cancellationToken: ct);
         }

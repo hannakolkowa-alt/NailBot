@@ -7,8 +7,13 @@ CREATE TABLE IF NOT EXISTS service_categories (
 );
 
 INSERT INTO service_categories (name)
-VALUES ('Маникюр'), ('Педикюр'), ('Дополнительно')
+VALUES ('Маникюр'), ('Педикюр')
 ON CONFLICT (name) DO NOTHING;
 
--- Удалите лишние категории вручную, если они были созданы ранее:
--- DELETE FROM service_categories WHERE name NOT IN ('Маникюр', 'Педикюр', 'Дополнительно');
+-- Удаление устаревшей категории «Дополнительно» (и её услуг):
+-- DELETE FROM request_items WHERE service_id IN (
+--   SELECT service_id FROM services WHERE category_id IN (
+--     SELECT category_id FROM service_categories WHERE name = 'Дополнительно'));
+-- DELETE FROM services WHERE category_id IN (
+--   SELECT category_id FROM service_categories WHERE name = 'Дополнительно');
+-- DELETE FROM service_categories WHERE name = 'Дополнительно';

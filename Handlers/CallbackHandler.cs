@@ -48,12 +48,6 @@ namespace TelegramBot.Handlers
                 return;
             }
 
-            if (data == "add:menu")
-            {
-                await BookingFlow.ShowAdditionalAsync(bot, chatId, ct);
-                return;
-            }
-
             if (data.StartsWith("svc:"))
             {
                 if (data == "svc:done") { await BookingFlow.ShowDatesAsync(bot, chatId, ct); return; }
@@ -68,24 +62,6 @@ namespace TelegramBot.Handlers
                     if (session.Booking.SelectedServiceIds.Contains(id)) session.Booking.SelectedServiceIds.Remove(id);
                     else session.Booking.SelectedServiceIds.Add(id);
                     await BookingFlow.ShowCategoryServicesAsync(bot, chatId, session.CurrentCategoryIndex, ct);
-                }
-                return;
-            }
-
-            if (data.StartsWith("add:"))
-            {
-                if (data == "add:done") { await BookingFlow.ShowDatesAsync(bot, chatId, ct); return; }
-                if (!int.TryParse(data[4..], out var addIdx) || addIdx < 0 || addIdx >= session.CachedServiceIds.Count)
-                {
-                    await StaleCallbackAsync(bot, chatId, ct);
-                    return;
-                }
-                if (addIdx >= 0 && addIdx < session.CachedServiceIds.Count)
-                {
-                    var id = session.CachedServiceIds[addIdx];
-                    if (session.Booking.SelectedServiceIds.Contains(id)) session.Booking.SelectedServiceIds.Remove(id);
-                    else session.Booking.SelectedServiceIds.Add(id);
-                    await BookingFlow.ShowAdditionalAsync(bot, chatId, ct);
                 }
                 return;
             }
