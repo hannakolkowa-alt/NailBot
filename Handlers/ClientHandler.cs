@@ -1,5 +1,6 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramBot.Constants;
 using TelegramBot.Flows;
 using TelegramBot.Helpers;
 using TelegramBot.Services;
@@ -92,7 +93,7 @@ namespace TelegramBot.Handlers
             {
                 var services = await CatalogService.GetRequestServicesAsync(req.RequestId);
                 var svcNames = string.Join(", ", services.Select(s => s.Name));
-                var msg = $"📋 Запись #{i + 1}\nСтатус: {req.Status}\nУслуги: {svcNames}\nДата: {req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}\n{req.Comment}";
+                var msg = $"📋 Запись #{i + 1}\nСтатус: {RequestStatus.ToDisplayRussian(req.Status)}\nУслуги: {svcNames}\nДата: {req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}\n{req.Comment}";
 
                 var rows = new List<InlineKeyboardButton[]>
                 {
