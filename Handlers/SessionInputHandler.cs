@@ -137,6 +137,12 @@ namespace TelegramBot.Handlers
                     return true;
 
                 case SessionState.Admin_Service_Name:
+                    if (!session.AdminCategoryId.HasValue)
+                    {
+                        await bot.SendMessage(chatId, "Сначала выберите категорию: «Услуги» → «Добавить услугу».", cancellationToken: ct);
+                        SessionStore.Reset(chatId);
+                        return true;
+                    }
                     session.ServiceDraftName = text;
                     session.State = SessionState.Admin_Service_Description;
                     await bot.SendMessage(chatId, "Описание услуги:", cancellationToken: ct);
@@ -157,10 +163,23 @@ namespace TelegramBot.Handlers
 
                 case SessionState.Admin_Service_Duration:
                     if (!int.TryParse(text, out var dur)) { await bot.SendMessage(chatId, "Введите число.", cancellationToken: ct); return true; }
-                    var catId = session.AdminCategoryId ?? (await CatalogService.GetCategoriesAsync()).First().CategoryId;
-                    await CatalogService.AddServiceAsync(catId, session.ServiceDraftName!, session.ServiceDraftDesc!, dur, decimal.Parse(session.TempText ?? "0"));
+                    if (!session.AdminCategoryId.HasValue)
+                    {
+                        SessionStore.Reset(chatId);
+                        await bot.SendMessage(chatId, "Категория не выбрана. Начните с «Услуги» → «Добавить услугу».", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                        return true;
+                    }
+                    var added = await CatalogService.AddServiceAsync(
+                        session.AdminCategoryId.Value,
+                        session.ServiceDraftName!,
+                        session.ServiceDraftDesc!,
+                        dur,
+                        decimal.Parse(session.TempText ?? "0"));
                     SessionStore.Reset(chatId);
-                    await bot.SendMessage(chatId, "Услуга добавлена.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    if (added == null)
+                        await bot.SendMessage(chatId, "Не удалось сохранить услугу.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    else
+                        await bot.SendMessage(chatId, "✅ Услуга добавлена.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
                     return true;
 
                 case SessionState.Admin_Schedule_Date:

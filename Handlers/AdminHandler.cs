@@ -84,18 +84,7 @@ namespace TelegramBot.Handlers
                     break;
 
                 case "услуги":
-                    var all = await CatalogService.GetAllServicesAsync();
-                    var cats = await CatalogService.GetCategoriesAsync();
-                    var priceText = string.Join("\n", all.Select(s =>
-                    {
-                        var cat = cats.FirstOrDefault(c => c.CategoryId == s.CategoryId)?.Name ?? "";
-                        return $"• [{cat}] {s.Name} — {s.Price}₽ ({s.DurationMinutes} мин)\n  {s.Description}";
-                    }));
-                    await botClient.SendMessage(chatId, "💰 Услуги:\n" + (priceText.Length > 0 ? priceText : "(пусто)"), cancellationToken: ct);
-
-                    session.AdminCategoryId = cats.FirstOrDefault()?.CategoryId;
-                    session.State = SessionState.Admin_Service_Name;
-                    await botClient.SendMessage(chatId, "➕ Добавить услугу — введите название:", cancellationToken: ct);
+                    await ServicesAdminFlow.ShowMenuAsync(botClient, chatId, ct);
                     break;
 
                 case "расписание":

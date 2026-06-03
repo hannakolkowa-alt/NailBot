@@ -202,6 +202,44 @@ namespace TelegramBot.Handlers
                 session.State = SessionState.Admin_EditProfile;
                 session.AdminEditField = data[5..];
                 await bot.SendMessage(chatId, "Введите новое значение:", cancellationToken: ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "adm_svc_add")
+            {
+                await ServicesAdminFlow.ShowCategoryPickerForAddAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "adm_svc_del_menu")
+            {
+                await ServicesAdminFlow.ShowDeletePickerAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data.StartsWith("adm_cat:") && int.TryParse(data[8..], out var admCatIdx))
+            {
+                await ServicesAdminFlow.BeginAddInCategoryAsync(bot, chatId, admCatIdx, ct);
+                return;
+            }
+
+            if (isMasterAccount && data.StartsWith("adm_del:") && int.TryParse(data[8..], out var delIdx))
+            {
+                if (delIdx < 0 || delIdx >= session.CachedServiceIds.Count)
+                {
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
+                var serviceId = session.CachedServiceIds[delIdx];
+                var ok = await CatalogService.DeleteServiceAsync(serviceId);
+                if (!ok)
+                {
+                    await bot.SendMessage(chatId, "Не удалось удалить услугу.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    return;
+                }
+                await bot.SendMessage(chatId, "✅ Услуга удалена.", cancellationToken: ct);
+                await ServicesAdminFlow.ShowMenuAsync(bot, chatId, ct);
+                return;
             }
         }
 

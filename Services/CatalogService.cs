@@ -5,13 +5,43 @@ namespace TelegramBot.Services
     public static class CatalogService
     {
         public const string AdditionalCategoryName = "Дополнительно";
+        public const string ManicureCategoryName = "Маникюр";
+        public const string PedicureCategoryName = "Педикюр";
+
+        public static readonly IReadOnlyList<string> StaticCategoryNames = new[]
+        {
+            ManicureCategoryName,
+            PedicureCategoryName,
+            AdditionalCategoryName
+        };
+
+        public static async Task EnsureStaticCategoriesAsync()
+        {
+            var res = await SupabaseConfig.GetClient().From<ServiceCategory>().Get();
+            var existing = res.Models ?? new List<ServiceCategory>();
+
+            foreach (var name in StaticCategoryNames)
+            {
+                if (existing.Any(c => string.Equals(c.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                var cat = new ServiceCategory { CategoryId = Guid.NewGuid(), Name = name };
+                var inserted = await SupabaseConfig.GetClient().From<ServiceCategory>().Insert(cat);
+                var created = inserted.Models?.FirstOrDefault();
+                if (created != null)
+                    existing.Add(created);
+            }
+        }
 
         public static async Task<List<ServiceCategory>> GetCategoriesAsync()
         {
             var res = await SupabaseConfig.GetClient().From<ServiceCategory>().Get();
-            return (res.Models ?? new List<ServiceCategory>())
-                .OrderBy(c => c.Name == AdditionalCategoryName ? 1 : 0)
-                .ThenBy(c => c.Name)
+            var all = res.Models ?? new List<ServiceCategory>();
+            return all
+                .Where(c => StaticCategoryNames.Any(n =>
+                    string.Equals(c.Name?.Trim(), n, StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(c => StaticCategoryNames.ToList().FindIndex(n =>
+                    string.Equals(n, c.Name?.Trim(), StringComparison.OrdinalIgnoreCase)))
                 .ToList();
         }
 
@@ -69,13 +99,6 @@ namespace TelegramBot.Services
             return string.Join(", ", names);
         }
 
-        public static async Task<ServiceCategory?> AddCategoryAsync(string name)
-        {
-            var cat = new ServiceCategory { CategoryId = Guid.NewGuid(), Name = name };
-            var res = await SupabaseConfig.GetClient().From<ServiceCategory>().Insert(cat);
-            return res.Models?.FirstOrDefault();
-        }
-
         public static async Task<Service?> AddServiceAsync(Guid categoryId, string name, string description, int duration, decimal price)
         {
             var svc = new Service
@@ -89,6 +112,21 @@ namespace TelegramBot.Services
             };
             var res = await SupabaseConfig.GetClient().From<Service>().Insert(svc);
             return res.Models?.FirstOrDefault();
+        }
+
+        public static async Task<bool> DeleteServiceAsync(Guid serviceId)
+        {
+            try
+            {
+                await SupabaseConfig.GetClient().From<RequestItem>().Where(ri => ri.ServiceId == serviceId).Delete();
+                await SupabaseConfig.GetClient().From<Service>().Where(s => s.ServiceId == serviceId).Delete();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DeleteServiceAsync: {ex.Message}");
+                return false;
+            }
         }
 
         public static async Task<bool> HasAnyServicesAsync()

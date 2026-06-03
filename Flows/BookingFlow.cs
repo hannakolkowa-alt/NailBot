@@ -15,6 +15,7 @@ namespace TelegramBot.Flows
             SessionStore.Reset(chatId);
             session.State = SessionState.Idle;
 
+            await CatalogService.EnsureStaticCategoriesAsync();
             var cats = await CatalogService.GetCategoriesAsync();
             session.CachedCategoryIds = cats
                 .Where(c => c.Name != CatalogService.AdditionalCategoryName)

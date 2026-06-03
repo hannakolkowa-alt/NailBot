@@ -6,12 +6,15 @@ namespace TelegramBot.Data
     {
         public static async Task EnsureSeedAsync()
         {
+            await CatalogService.EnsureStaticCategoriesAsync();
+
             if (await CatalogService.HasAnyServicesAsync())
                 return;
 
-            var manicure = await CatalogService.AddCategoryAsync("Маникюр");
-            var pedicure = await CatalogService.AddCategoryAsync("Педикюр");
-            var additional = await CatalogService.AddCategoryAsync(CatalogService.AdditionalCategoryName);
+            var cats = await CatalogService.GetCategoriesAsync();
+            var manicure = cats.FirstOrDefault(c => c.Name == CatalogService.ManicureCategoryName);
+            var pedicure = cats.FirstOrDefault(c => c.Name == CatalogService.PedicureCategoryName);
+            var additional = cats.FirstOrDefault(c => c.Name == CatalogService.AdditionalCategoryName);
 
             if (manicure == null || pedicure == null || additional == null) return;
 
