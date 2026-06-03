@@ -1,5 +1,6 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Types;
+using TelegramBot.Flows;
 using TelegramBot.Helpers;
 using TelegramBot.State;
 using TelegramBot.UI;
@@ -56,8 +57,9 @@ namespace TelegramBot.Handlers
                     var keepGallerySession = actAsMaster
                         && normalized == "галерея"
                         && session.State == SessionState.Admin_Gallery_WaitPhoto;
+                    var keepRescheduleSession = AppointmentRescheduleFlow.IsRescheduleState(session.State);
 
-                    if (!keepScheduleSession && !keepReviewSession && !keepGallerySession)
+                    if (!keepScheduleSession && !keepReviewSession && !keepGallerySession && !keepRescheduleSession)
                         SessionStore.Reset(chatId);
 
                     if (MenuRouter.ShouldUseAdminHandler(normalized, actAsMaster, isMasterAccount))

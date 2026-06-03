@@ -181,7 +181,8 @@ namespace TelegramBot.Handlers
                             {
                                 InlineKeyboardButton.WithCallbackData("✅ Выполнено", $"apt_done:{i}"),
                                 InlineKeyboardButton.WithCallbackData("🚫 Неявка", $"apt_noshow:{i}")
-                            }
+                            },
+                            new[] { InlineKeyboardButton.WithCallbackData("📅 Перенести", $"apt_resched:{i}") }
                         }),
                         cancellationToken: ct);
                 }

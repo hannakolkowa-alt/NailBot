@@ -21,7 +21,10 @@ namespace TelegramBot.State
         Admin_Schedule_EditTime,
         Admin_RejectReason,
         Admin_ClientDeleteConfirm,
-        Admin_Gallery_WaitPhoto
+        Admin_Gallery_WaitPhoto,
+        Admin_Reschedule_PickDate,
+        Admin_Reschedule_PickTime,
+        Admin_Reschedule_Confirm
     }
 
     public class UserSession

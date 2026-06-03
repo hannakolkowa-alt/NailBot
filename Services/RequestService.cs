@@ -175,6 +175,25 @@ namespace TelegramBot.Services
             }
         }
 
+        public static async Task<bool> UpdateDesiredScheduleAsync(Guid requestId, DateOnly date, TimeOnly time)
+        {
+            try
+            {
+                var res = await SupabaseConfig.GetClient()
+                    .From<Request>()
+                    .Where(r => r.RequestId == requestId)
+                    .Set(r => r.DesiredDate, date)
+                    .Set(r => r.DesiredTime, time)
+                    .Update();
+                return res.Models?.Count > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateDesiredScheduleAsync: {ex.Message}");
+                return false;
+            }
+        }
+
         public static async Task<bool> DeleteRequestAsync(Guid requestId)
         {
             await SupabaseConfig.GetClient().From<RequestItem>().Where(ri => ri.RequestId == requestId).Delete();

@@ -112,6 +112,48 @@ namespace TelegramBot.Services
             return res.Models?.Count > 0;
         }
 
+        public static async Task<(bool Ok, string? Error)> RescheduleAsync(
+            Guid appointmentId,
+            Guid newWorkingDateId,
+            Guid newTimeSlotId,
+            DateOnly newDate,
+            TimeOnly newTime)
+        {
+            var apt = await GetByIdAsync(appointmentId);
+            if (apt == null)
+                return (false, "Запись не найдена");
+
+            var oldSlotId = apt.TimeSlotId;
+
+            if (apt.RequestId.HasValue)
+            {
+                if (!await RequestService.UpdateDesiredScheduleAsync(apt.RequestId.Value, newDate, newTime))
+                    return (false, "Не удалось обновить заявку");
+            }
+
+            await ScheduleService.SetSlotBookedAsync(oldSlotId, false);
+            await ScheduleService.SetSlotBookedAsync(newTimeSlotId, true);
+
+            try
+            {
+                var res = await SupabaseConfig.GetClient()
+                    .From<Appointment>()
+                    .Where(a => a.AppointmentId == appointmentId)
+                    .Set(a => a.WorkingDateId, newWorkingDateId)
+                    .Set(a => a.TimeSlotId, newTimeSlotId)
+                    .Update();
+                if (res.Models?.Count > 0)
+                    return (true, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"RescheduleAsync: {ex.Message}");
+                return (false, ex.Message);
+            }
+
+            return (false, "Не удалось обновить запись");
+        }
+
         private static bool IsActiveStatus(string? status)
         {
             var s = (status ?? "").Trim().ToLowerInvariant();

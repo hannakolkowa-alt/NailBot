@@ -38,7 +38,42 @@ namespace TelegramBot.Services
                 .ToList();
         }
 
-        public static async Task<HashSet<Guid>> GetBookedSlotIdsAsync(Guid workingDateId)
+        /// <summary>Свободные слоты для переноса; includeSlotId — текущий слот записи на этой дате.</summary>
+        public static async Task<List<TimeSlot>> GetSlotsForRescheduleAsync(
+            Guid workingDateId,
+            Guid excludeAppointmentId,
+            Guid? includeSlotId = null)
+        {
+            var bookedOthers = await GetBookedSlotIdsAsync(workingDateId, excludeAppointmentId);
+            var all = await GetSlotsForWorkingDateAsync(workingDateId);
+
+            return all
+                .Where(s =>
+                    (!s.IsBooked && !bookedOthers.Contains(s.TimeSlotId))
+                    || (includeSlotId.HasValue && s.TimeSlotId == includeSlotId.Value))
+                .OrderBy(s => s.Time)
+                .ToList();
+        }
+
+        public static async Task<bool> SetSlotBookedAsync(Guid timeSlotId, bool isBooked)
+        {
+            try
+            {
+                var res = await SupabaseConfig.GetClient()
+                    .From<TimeSlot>()
+                    .Where(s => s.TimeSlotId == timeSlotId)
+                    .Set(s => s.IsBooked, isBooked)
+                    .Update();
+                return res.Models?.Count > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SetSlotBookedAsync: {ex.Message}");
+                return false;
+            }
+        }
+
+        public static async Task<HashSet<Guid>> GetBookedSlotIdsAsync(Guid workingDateId, Guid? excludeAppointmentId = null)
         {
             var appts = await SupabaseConfig.GetClient()
                 .From<Appointment>()
@@ -46,7 +81,8 @@ namespace TelegramBot.Services
                 .Get();
 
             var active = (appts.Models ?? new List<Appointment>())
-                .Where(a => a.Status is "confirmed" or "completed")
+                .Where(a => a.Status is "confirmed" or "active" or "pending" or "approved")
+                .Where(a => !excludeAppointmentId.HasValue || a.AppointmentId != excludeAppointmentId.Value)
                 .Select(a => a.TimeSlotId)
                 .ToHashSet();
 

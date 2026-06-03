@@ -146,6 +146,50 @@ namespace TelegramBot.Handlers
                 return;
             }
 
+            if (data == "rsch_cancel")
+            {
+                if (!isMasterAccount) return;
+                await AppointmentRescheduleFlow.CancelAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (data == "rsch_back_dates" && isMasterAccount)
+            {
+                session.State = SessionState.Admin_Reschedule_PickDate;
+                await AppointmentRescheduleFlow.ShowDatesAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (data == "rsch_ok" && isMasterAccount)
+            {
+                await AppointmentRescheduleFlow.ConfirmAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (data.StartsWith("rsch_date:") && isMasterAccount && int.TryParse(data[10..], out var rschDateIdx))
+            {
+                await AppointmentRescheduleFlow.ShowTimesAsync(bot, chatId, rschDateIdx, ct);
+                return;
+            }
+
+            if (data.StartsWith("rsch_time:") && isMasterAccount && int.TryParse(data[10..], out var rschTimeIdx))
+            {
+                await AppointmentRescheduleFlow.ShowConfirmAsync(bot, chatId, rschTimeIdx, ct);
+                return;
+            }
+
+            if (data.StartsWith("apt_resched:"))
+            {
+                if (!isMasterAccount) return;
+                if (!int.TryParse(data[12..], out var reschedIdx) || reschedIdx < 0 || reschedIdx >= session.CachedAppointmentIds.Count)
+                {
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
+                await AppointmentRescheduleFlow.BeginAsync(bot, chatId, session.CachedAppointmentIds[reschedIdx], ct);
+                return;
+            }
+
             if (data.StartsWith("rec_can:"))
             {
                 if (!int.TryParse(data[8..], out var ci) || ci >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
