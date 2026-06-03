@@ -94,7 +94,7 @@ namespace TelegramBot.Handlers
             {
                 var services = await CatalogService.GetRequestServicesAsync(req.RequestId);
                 var svcNames = string.Join(", ", services.Select(s => s.Name));
-                var msg = $"📋 Запись #{i + 1}\nСтатус: {RequestStatus.ToDisplayRussian(req.Status)}\nУслуги: {svcNames}\nДата: {req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}\n{req.Comment}";
+                var msg = $"📋 Запись #{i + 1}\nСтатус: {RequestStatus.ToDisplayRussian(req.Status)}\nУслуги: {svcNames}\n{CatalogService.FormatTotalPriceLine(services)}\nДата: {req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}\n{req.Comment}";
 
                 var rows = new List<InlineKeyboardButton[]>
                 {
@@ -122,7 +122,7 @@ namespace TelegramBot.Handlers
                 var statusLine = hasReview ? "✅ Выполнено · отзыв оставлен" : "✅ Выполнено";
 
                 await bot.SendMessage(chatId,
-                    $"📋 Визит\n{statusLine}\nУслуги: {svcNames}\nДата: {dateStr}",
+                    $"📋 Визит\n{statusLine}\nУслуги: {svcNames}\n{CatalogService.FormatTotalPriceLine(services)}\nДата: {dateStr}",
                     cancellationToken: ct);
 
                 if (!hasReview)
@@ -147,7 +147,7 @@ namespace TelegramBot.Handlers
                     ? await CatalogService.GetRequestServicesAsync(req.RequestId)
                     : new List<Models.Service>();
                 await bot.SendMessage(chatId,
-                    $"📋 Подтверждено\nУслуги: {string.Join(", ", services.Select(s => s.Name))}\nДата: {req?.DesiredDate:dd.MM.yyyy} {req?.DesiredTime:HH:mm}",
+                    $"📋 Подтверждено\nУслуги: {string.Join(", ", services.Select(s => s.Name))}\n{CatalogService.FormatTotalPriceLine(services)}\nДата: {req?.DesiredDate:dd.MM.yyyy} {req?.DesiredTime:HH:mm}",
                     cancellationToken: ct);
             }
 

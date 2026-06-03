@@ -1,4 +1,5 @@
-﻿using TelegramBot.Models;
+﻿using TelegramBot.Constants;
+using TelegramBot.Models;
 
 namespace TelegramBot.Services
 {
@@ -109,6 +110,9 @@ namespace TelegramBot.Services
             var all = await GetAllServicesAsync();
             return all.Where(s => ids.Contains(s.ServiceId)).Sum(s => s.Price);
         }
+
+        public static string FormatTotalPriceLine(IEnumerable<Service> services) =>
+            $"Итоговая сумма: {PriceFormat.Format(services.Sum(s => s.Price))}";
 
         public static async Task<Service?> AddServiceAsync(Guid categoryId, string name, string description, int duration, decimal price)
         {

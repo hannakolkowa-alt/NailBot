@@ -143,7 +143,7 @@ namespace TelegramBot.Handlers
             {
                 var services = await CatalogService.GetRequestServicesAsync(req.RequestId);
                 var cl = clients.FirstOrDefault(c => c.ClientId == req.ClientId);
-                var msg = $"📩 Заявка\nУслуги: {string.Join(", ", services.Select(s => s.Name))}\nДата: {req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}\n{req.Comment}";
+                var msg = $"📩 Заявка\nУслуги: {string.Join(", ", services.Select(s => s.Name))}\n{CatalogService.FormatTotalPriceLine(services)}\nДата: {req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}\n{req.Comment}";
 
                 var rows = new[]
                 {
@@ -173,7 +173,7 @@ namespace TelegramBot.Handlers
                     var req = allRequests.Models?.FirstOrDefault(r => r.RequestId == apt.RequestId);
                     var cl = clients.FirstOrDefault(c => c.ClientId == apt.ClientId);
                     var svc = req != null ? await CatalogService.GetRequestServicesAsync(req.RequestId) : new List<Models.Service>();
-                    var msg = $"📋 Запись\nКлиент: {cl?.FirstName} @{cl?.TelegramUsername}\nУслуги: {string.Join(", ", svc.Select(s => s.Name))}\nДата: {req?.DesiredDate:dd.MM.yyyy} {req?.DesiredTime:HH:mm}";
+                    var msg = $"📋 Запись\nКлиент: {cl?.FirstName} @{cl?.TelegramUsername}\nУслуги: {string.Join(", ", svc.Select(s => s.Name))}\n{CatalogService.FormatTotalPriceLine(svc)}\nДата: {req?.DesiredDate:dd.MM.yyyy} {req?.DesiredTime:HH:mm}";
 
                     await bot.SendMessage(chatId, msg,
                         replyMarkup: new InlineKeyboardMarkup(new[]
@@ -198,7 +198,7 @@ namespace TelegramBot.Handlers
                     var cl = clients.FirstOrDefault(c => c.ClientId == req.ClientId);
                     var svc = await CatalogService.GetRequestServicesAsync(req.RequestId);
                     await bot.SendMessage(chatId,
-                        $"• {cl?.FirstName} @{cl?.TelegramUsername}\n{string.Join(", ", svc.Select(s => s.Name))}\n{req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}",
+                        $"• {cl?.FirstName} @{cl?.TelegramUsername}\n{string.Join(", ", svc.Select(s => s.Name))}\n{CatalogService.FormatTotalPriceLine(svc)}\n{req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}",
                         cancellationToken: ct);
                 }
                 return;
