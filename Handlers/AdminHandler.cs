@@ -177,7 +177,11 @@ namespace TelegramBot.Handlers
                     await bot.SendMessage(chatId, msg,
                         replyMarkup: new InlineKeyboardMarkup(new[]
                         {
-                            new[] { InlineKeyboardButton.WithCallbackData("✅ Выполнено", $"apt_done:{i}") }
+                            new[]
+                            {
+                                InlineKeyboardButton.WithCallbackData("✅ Выполнено", $"apt_done:{i}"),
+                                InlineKeyboardButton.WithCallbackData("🚫 Неявка", $"apt_noshow:{i}")
+                            }
                         }),
                         cancellationToken: ct);
                 }

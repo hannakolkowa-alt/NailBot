@@ -25,6 +25,19 @@ namespace TelegramBot.Constants
     {
         public const string Confirmed = "confirmed";
         public const string Completed = "completed";
+        public const string NoShow = "no_show";
         public const string Cancelled = "cancelled";
+
+        public static string ToDisplayRussian(string? status)
+        {
+            return (status ?? "").Trim().ToLowerInvariant() switch
+            {
+                "confirmed" or "active" or "pending" or "approved" => "📅 Подтверждена",
+                "completed" => "✅ Выполнено",
+                "no_show" or "noshow" => "🚫 Неявка",
+                "cancelled" => "🚫 Отменено",
+                _ => string.IsNullOrWhiteSpace(status) ? "—" : status!
+            };
+        }
     }
 }

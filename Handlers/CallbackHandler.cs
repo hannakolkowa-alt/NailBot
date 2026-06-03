@@ -133,6 +133,19 @@ namespace TelegramBot.Handlers
                 return;
             }
 
+            if (data.StartsWith("apt_noshow:"))
+            {
+                if (!isMasterAccount) return;
+                if (!int.TryParse(data[11..], out var noShowIdx) || noShowIdx < 0 || noShowIdx >= session.CachedAppointmentIds.Count)
+                {
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
+                var noShowAptId = session.CachedAppointmentIds[noShowIdx];
+                await MarkAppointmentNoShowAsync(bot, chatId, noShowAptId, ct);
+                return;
+            }
+
             if (data.StartsWith("rec_can:"))
             {
                 if (!int.TryParse(data[8..], out var ci) || ci >= session.CachedRequestIds.Count) { await StaleCallbackAsync(bot, chatId, ct); return; }
@@ -460,6 +473,33 @@ namespace TelegramBot.Handlers
             }
 
             await bot.SendMessage(adminChatId, "Запись отмечена как выполненная. Клиенту отправлен запрос на отзыв.", cancellationToken: ct);
+        }
+
+        private static async Task MarkAppointmentNoShowAsync(ITelegramBotClient bot, long adminChatId, Guid appointmentId, CancellationToken ct)
+        {
+            if (!await AppointmentService.MarkNoShowAsync(appointmentId))
+            {
+                await bot.SendMessage(adminChatId, "Не удалось отметить неявку. Попробуйте снова.", cancellationToken: ct);
+                return;
+            }
+
+            var apt = await AppointmentService.GetByIdAsync(appointmentId);
+            if (apt != null)
+            {
+                var client = (await ClientService.GetAllClientsAsync()).FirstOrDefault(c => c.ClientId == apt.ClientId);
+                if (client != null)
+                {
+                    try
+                    {
+                        await bot.SendMessage(client.TelegramId,
+                            "🚫 Запись отмечена как неявка. Если это ошибка — свяжитесь с мастером.",
+                            cancellationToken: ct);
+                    }
+                    catch { }
+                }
+            }
+
+            await bot.SendMessage(adminChatId, "🚫 Запись отмечена как неявка.", cancellationToken: ct);
         }
     }
 }

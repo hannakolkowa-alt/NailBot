@@ -77,9 +77,15 @@ namespace TelegramBot.Services
             return null;
         }
 
-        public static async Task<bool> MarkCompletedAsync(Guid appointmentId)
+        public static async Task<bool> MarkCompletedAsync(Guid appointmentId) =>
+            await UpdateStatusAsync(appointmentId, AppointmentStatus.Completed, "completed", "COMPLETED");
+
+        public static async Task<bool> MarkNoShowAsync(Guid appointmentId) =>
+            await UpdateStatusAsync(appointmentId, AppointmentStatus.NoShow, "noshow", "NO_SHOW");
+
+        private static async Task<bool> UpdateStatusAsync(Guid appointmentId, params string[] statusCandidates)
         {
-            foreach (var status in new[] { AppointmentStatus.Completed, "completed", "COMPLETED" })
+            foreach (var status in statusCandidates)
             {
                 try
                 {
@@ -117,5 +123,14 @@ namespace TelegramBot.Services
             var s = (status ?? "").Trim().ToLowerInvariant();
             return s is "completed";
         }
+
+        private static bool IsNoShowStatus(string? status)
+        {
+            var s = (status ?? "").Trim().ToLowerInvariant();
+            return s is "no_show" or "noshow";
+        }
+
+        public static bool IsTerminalStatus(string? status) =>
+            IsCompletedStatus(status) || IsNoShowStatus(status);
     }
 }
