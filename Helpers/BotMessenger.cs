@@ -5,6 +5,29 @@ namespace TelegramBot.Helpers
 {
     public static class BotMessenger
     {
+        /// <summary>Сообщение всем мастерам, кроме чата клиента (чтобы не дублировать в одном диалоге при тесте).</summary>
+        public static async Task NotifyMastersAsync(
+            ITelegramBotClient bot,
+            long clientChatId,
+            string text,
+            CancellationToken ct)
+        {
+            foreach (var masterId in BotConfig.MasterTelegramIds)
+            {
+                if (masterId <= 0 || masterId == clientChatId)
+                    continue;
+
+                try
+                {
+                    await bot.SendMessage(masterId, text, cancellationToken: ct);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"NotifyMasters → {masterId}: {ex.Message}");
+                }
+            }
+        }
+
         public static async Task NotifyErrorAsync(ITelegramBotClient bot, long chatId, Exception ex, CancellationToken ct)
         {
             Console.WriteLine($"User {chatId} error: {ex}");

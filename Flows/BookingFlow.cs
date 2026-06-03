@@ -185,16 +185,12 @@ namespace TelegramBot.Flows
 
             await bot.SendMessage(chatId,
                 "✅ Заявка отправлена мастеру на подтверждение!",
-                replyMarkup: Keyboards.GetMenuForUser(chatId, chatId),
+                replyMarkup: Keyboards.GetMenuForUser(chatId, userId),
                 cancellationToken: ct);
 
-            try
-            {
-                await bot.SendMessage(BotConfig.PrimaryMasterTelegramId,
-                    "📩 Новая заявка на запись! Откройте раздел «Заявки».",
-                    cancellationToken: ct);
-            }
-            catch { /* admin may not have started bot */ }
+            await BotMessenger.NotifyMastersAsync(bot, chatId,
+                "📩 Новая заявка на запись! Откройте раздел «Заявки».",
+                ct);
         }
     }
 }
