@@ -89,26 +89,7 @@ namespace TelegramBot.Handlers
 
                 case "расписание":
                 case "график":
-                    var now = DateTime.Now;
-                    var scheduleView = await ScheduleService.FormatMonthScheduleAsync(now.Year, now.Month);
-                    await botClient.SendMessage(chatId, scheduleView, replyMarkup: kb, cancellationToken: ct);
-
-                    if (session.Booking.WorkingDateId.HasValue)
-                    {
-                        session.State = SessionState.Admin_Schedule_Time;
-                        await botClient.SendMessage(chatId,
-                            "Продолжайте ввод времени для текущей даты или напишите «готово».",
-                            cancellationToken: ct);
-                        break;
-                    }
-
-                    session.State = SessionState.Admin_Schedule_Date;
-                    await botClient.SendMessage(chatId,
-                        "📅 Добавить рабочий день — введите дату:\n" +
-                        "• ГГГГ-ММ-ДД (2026-06-01)\n" +
-                        "• или ДД.ММ.ГГГГ (01.06.2026)\n\n" +
-                        "Затем время: 10:00, 14:30 … Когда закончите — «готово».",
-                        cancellationToken: ct);
+                    await ScheduleAdminFlow.ShowCalendarAsync(botClient, chatId, ct: ct);
                     break;
 
                 case "отзывы":

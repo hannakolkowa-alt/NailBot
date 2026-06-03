@@ -241,6 +241,69 @@ namespace TelegramBot.Handlers
                 await ServicesAdminFlow.ShowMenuAsync(bot, chatId, ct);
                 return;
             }
+
+            if (data == "sch_noop")
+                return;
+
+            if (isMasterAccount && ScheduleAdminFlow.TryParseDayCallback(data, out var pickedDay))
+            {
+                await ScheduleAdminFlow.ShowDayAsync(bot, chatId, pickedDay, ct);
+                return;
+            }
+
+            if (isMasterAccount && ScheduleAdminFlow.TryParseMonthCallback(data, out var calYear, out var calMonth))
+            {
+                await ScheduleAdminFlow.ShowCalendarAsync(bot, chatId, calYear, calMonth, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "sch_add")
+            {
+                await ScheduleAdminFlow.ShowTimePickerAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "sch_tc")
+            {
+                await ScheduleAdminFlow.BeginCustomTimeAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "sch_back_day")
+            {
+                await ScheduleAdminFlow.RefreshCurrentDayAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data.StartsWith("sch_t:") && ScheduleTimeParser.TryParseFromCallback(data[6..], out var pickTime))
+            {
+                await ScheduleAdminFlow.AddTimeAsync(bot, chatId, pickTime, ct);
+                return;
+            }
+
+            if (isMasterAccount && data.StartsWith("sch_es:") && int.TryParse(data[7..], out var editIdx))
+            {
+                await ScheduleAdminFlow.BeginEditSlotAsync(bot, chatId, editIdx, ct);
+                return;
+            }
+
+            if (isMasterAccount && data.StartsWith("sch_ds:") && int.TryParse(data[7..], out var delSlotIdx))
+            {
+                await ScheduleAdminFlow.DeleteSlotAsync(bot, chatId, delSlotIdx, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "sch_dd")
+            {
+                await ScheduleAdminFlow.ConfirmDeleteDayAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "sch_dd_yes")
+            {
+                await ScheduleAdminFlow.DeleteDayAsync(bot, chatId, ct);
+                return;
+            }
         }
 
         private static async Task StaleCallbackAsync(ITelegramBotClient bot, long chatId, CancellationToken ct)

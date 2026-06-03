@@ -140,10 +140,100 @@ namespace TelegramBot.Services
             var lines = new List<string> { $"📅 Расписание на {month:00}.{year}:\n" };
             foreach (var d in dates)
             {
+                var all = await GetSlotsForWorkingDateAsync(d.DateId);
                 var free = await GetFreeSlotsAsync(d.DateId);
-                lines.Add($"• {d.Date:dd.MM.yyyy} — свободно слотов: {free.Count}");
+                lines.Add($"• {d.Date:dd.MM.yyyy} — слотов: {all.Count}, свободно: {free.Count}");
             }
             return string.Join("\n", lines);
+        }
+
+        public static async Task<WorkingDate?> GetWorkingDateByDateAsync(Guid masterId, DateOnly date)
+        {
+            var all = await GetWorkingDatesAsync(DateOnly.MinValue, DateOnly.MaxValue);
+            return all.FirstOrDefault(d => d.MasterId == masterId && d.Date == date);
+        }
+
+        public static async Task<HashSet<DateOnly>> GetScheduledDatesInMonthAsync(int year, int month)
+        {
+            var from = new DateOnly(year, month, 1);
+            var to = from.AddMonths(1).AddDays(-1);
+            var dates = await GetWorkingDatesAsync(from, to);
+            return dates.Select(d => d.Date).ToHashSet();
+        }
+
+        public static async Task<List<TimeOnly>> GetSuggestedTimesAsync()
+        {
+            var defaults = Enumerable.Range(9, 10).Select(h => new TimeOnly(h, 0)).ToList();
+            var res = await SupabaseConfig.GetClient().From<TimeSlot>().Get();
+            var fromDb = (res.Models ?? new List<TimeSlot>()).Select(s => s.Time);
+            return defaults.Concat(fromDb).Distinct().OrderBy(t => t).ToList();
+        }
+
+        public static async Task<bool> IsSlotBookedAsync(Guid timeSlotId)
+        {
+            var appts = await SupabaseConfig.GetClient().From<Appointment>().Get();
+            return (appts.Models ?? new List<Appointment>())
+                .Any(a => a.TimeSlotId == timeSlotId && IsActiveAppointmentStatus(a.Status));
+        }
+
+        private static bool IsActiveAppointmentStatus(string? status)
+        {
+            var s = (status ?? "").Trim().ToLowerInvariant();
+            return s is "confirmed" or "active" or "pending" or "approved" or "completed";
+        }
+
+        public static async Task<bool> DeleteTimeSlotAsync(Guid timeSlotId)
+        {
+            if (await IsSlotBookedAsync(timeSlotId))
+                return false;
+
+            await SupabaseConfig.GetClient().From<TimeSlot>().Where(s => s.TimeSlotId == timeSlotId).Delete();
+            return true;
+        }
+
+        public static async Task<(bool Ok, string? Error)> UpdateTimeSlotAsync(Guid timeSlotId, TimeOnly newTime)
+        {
+            if (await IsSlotBookedAsync(timeSlotId))
+                return (false, "Слот занят записью — изменить время нельзя.");
+
+            var slotRes = await SupabaseConfig.GetClient().From<TimeSlot>().Where(s => s.TimeSlotId == timeSlotId).Get();
+            var slot = slotRes.Models?.FirstOrDefault();
+            if (slot == null || !slot.WorkingDateId.HasValue)
+                return (false, "Слот не найден.");
+
+            var onDate = await GetSlotsForWorkingDateAsync(slot.WorkingDateId.Value);
+            if (onDate.Any(s => s.TimeSlotId != timeSlotId && s.Time == newTime))
+                return (false, "На эту дату уже есть такое время.");
+
+            try
+            {
+                var res = await SupabaseConfig.GetClient()
+                    .From<TimeSlot>()
+                    .Where(s => s.TimeSlotId == timeSlotId)
+                    .Set(s => s.Time, newTime)
+                    .Update();
+                return res.Models?.Count > 0 ? (true, null) : (false, "Не удалось обновить.");
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+
+        public static async Task<(bool Ok, string? Error)> DeleteWorkingDateAsync(Guid dateId)
+        {
+            var slots = await GetSlotsForWorkingDateAsync(dateId);
+            foreach (var s in slots)
+            {
+                if (await IsSlotBookedAsync(s.TimeSlotId))
+                    return (false, "На эту дату есть записи клиентов — удалите слоты вручную или оставьте день.");
+            }
+
+            foreach (var s in slots)
+                await SupabaseConfig.GetClient().From<TimeSlot>().Where(x => x.TimeSlotId == s.TimeSlotId).Delete();
+
+            await SupabaseConfig.GetClient().From<WorkingDate>().Where(d => d.DateId == dateId).Delete();
+            return (true, null);
         }
     }
 }

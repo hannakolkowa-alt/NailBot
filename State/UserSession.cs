@@ -16,8 +16,8 @@ namespace TelegramBot.State
         Admin_Service_Description,
         Admin_Service_Price,
         Admin_Service_Duration,
-        Admin_Schedule_Date,
-        Admin_Schedule_Time,
+        Admin_Schedule_CustomTime,
+        Admin_Schedule_EditTime,
         Admin_RejectReason,
         Admin_ClientDeleteConfirm
     }
@@ -46,5 +46,9 @@ namespace TelegramBot.State
         public int CurrentCategoryIndex { get; set; }
         public string? ServiceDraftName { get; set; }
         public string? ServiceDraftDesc { get; set; }
+
+        public int ScheduleCalendarYear { get; set; }
+        public int ScheduleCalendarMonth { get; set; }
+        public Guid? TargetSlotId { get; set; }
     }
 }

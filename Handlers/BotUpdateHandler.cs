@@ -46,8 +46,7 @@ namespace TelegramBot.Handlers
                     var session = SessionStore.GetOrCreate(chatId);
                     var keepScheduleSession = actAsMaster
                         && (normalized is "расписание" or "график")
-                        && (session.State is SessionState.Admin_Schedule_Date or SessionState.Admin_Schedule_Time
-                            || session.Booking.WorkingDateId.HasValue);
+                        && session.State is SessionState.Admin_Schedule_CustomTime or SessionState.Admin_Schedule_EditTime;
 
                     if (!keepScheduleSession)
                         SessionStore.Reset(chatId);
