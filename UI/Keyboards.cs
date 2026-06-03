@@ -16,6 +16,7 @@ namespace TelegramBot.UI
             var rows = new List<KeyboardButton[]>
             {
                 new[] { new KeyboardButton("О мастере") },
+                new[] { new KeyboardButton("Портфолио мастера") },
                 new[] { new KeyboardButton("Услуги") },
                 new[] { new KeyboardButton("Расписание") },
                 new[] { new KeyboardButton("Мои записи") },
@@ -35,6 +36,7 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("Записи"), new KeyboardButton("Заявки") },
                 new[] { new KeyboardButton("Мой профиль"), new KeyboardButton("Изменить профиль") },
                 new[] { new KeyboardButton("Услуги"), new KeyboardButton("Расписание") },
+                new[] { new KeyboardButton("Галерея") },
                 new[] { new KeyboardButton("Все отзывы") },
                 new[] { new KeyboardButton("🧪 Клиент") },
                 new[] { new KeyboardButton("◀️ Меню") }

@@ -18,11 +18,18 @@ namespace TelegramBot.Handlers
                     return;
                 }
 
-                if (update.Message is not { } message || message.Text is not { } text)
+                if (update.Message is not { } message)
                     return;
 
                 long chatId = message.Chat.Id;
                 long userId = message.From?.Id ?? chatId;
+
+                if (message.Photo is { Length: > 0 }
+                    && await GalleryAdminFlow.TryHandlePhotoAsync(botClient, message, ct))
+                    return;
+
+                if (message.Text is not { } text)
+                    return;
                 var isMasterAccount = RoleHelper.IsMasterAccount(userId);
                 var actAsMaster = RoleHelper.ActAsMaster(chatId, userId);
                 var normalized = MenuRouter.NormalizeForProfile(text, actAsMaster);
@@ -49,8 +56,11 @@ namespace TelegramBot.Handlers
                         && session.State is SessionState.Admin_Schedule_CustomTime or SessionState.Admin_Schedule_EditTime;
 
                     var keepReviewSession = session.State is SessionState.Review_SelectStars or SessionState.Review_EnterText;
+                    var keepGallerySession = actAsMaster
+                        && normalized == "галерея"
+                        && session.State == SessionState.Admin_Gallery_WaitPhoto;
 
-                    if (!keepScheduleSession && !keepReviewSession)
+                    if (!keepScheduleSession && !keepReviewSession && !keepGallerySession)
                         SessionStore.Reset(chatId);
 
                     if (MenuRouter.ShouldUseAdminHandler(normalized, actAsMaster, isMasterAccount))

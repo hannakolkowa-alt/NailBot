@@ -25,7 +25,9 @@ namespace TelegramBot.Services
                     .Where(g => g.MasterId == masterId)
                     .Get();
 
-                return response.Models ?? new List<Gallery>();
+                return (response.Models ?? new List<Gallery>())
+                    .OrderByDescending(g => g.CreatedAt)
+                    .ToList();
             }
             catch (Exception ex)
             {
@@ -47,14 +49,15 @@ namespace TelegramBot.Services
             {
                 var photo = new Gallery
                 {
+                    PhotoId = Guid.NewGuid(),
                     MasterId = masterId,
                     PhotoUrl = photoUrl,
-                    Description = description,
+                    Description = description ?? "",
                     CreatedAt = DateTime.UtcNow
                 };
 
                 var response = await SupabaseConfig.GetClient().From<Gallery>().Insert(photo);
-                return response.Models.Count > 0;
+                return response.Models?.Count > 0;
             }
             catch (Exception ex)
             {

@@ -19,6 +19,10 @@ namespace TelegramBot.Helpers
             if (actAsMaster && n == "отзывы")
                 return "все отзывы";
 
+            // Старая клиентская кнопка «Галерея» → портфолио
+            if (!actAsMaster && n == "галерея")
+                return "портфолио мастера";
+
             return n;
         }
 

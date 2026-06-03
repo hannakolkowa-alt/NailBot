@@ -205,6 +205,45 @@ namespace TelegramBot.Handlers
                 return;
             }
 
+            if (isMasterAccount && data == "gal_add")
+            {
+                await GalleryAdminFlow.BeginAddPhotoAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "gal_done")
+            {
+                session.State = SessionState.Idle;
+                await bot.SendMessage(chatId, "Добавление фото завершено.", cancellationToken: ct);
+                await GalleryAdminFlow.ShowMenuAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data == "gal_del_menu")
+            {
+                await GalleryAdminFlow.ShowDeletePickerAsync(bot, chatId, ct);
+                return;
+            }
+
+            if (isMasterAccount && data.StartsWith("gal_del:") && int.TryParse(data[8..], out var galDelIdx))
+            {
+                if (galDelIdx < 0 || galDelIdx >= session.CachedGalleryPhotoIds.Count)
+                {
+                    await StaleCallbackAsync(bot, chatId, ct);
+                    return;
+                }
+                var photoId = session.CachedGalleryPhotoIds[galDelIdx];
+                var deleted = await GalleryService.DeletePhotoAsync(photoId);
+                if (!deleted)
+                {
+                    await bot.SendMessage(chatId, "Не удалось удалить фото.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+                    return;
+                }
+                await bot.SendMessage(chatId, "✅ Фото удалено.", cancellationToken: ct);
+                await GalleryAdminFlow.ShowMenuAsync(bot, chatId, ct);
+                return;
+            }
+
             if (isMasterAccount && data == "adm_svc_add")
             {
                 await ServicesAdminFlow.ShowCategoryPickerForAddAsync(bot, chatId, ct);

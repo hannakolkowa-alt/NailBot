@@ -20,7 +20,8 @@ namespace TelegramBot.State
         Admin_Schedule_CustomTime,
         Admin_Schedule_EditTime,
         Admin_RejectReason,
-        Admin_ClientDeleteConfirm
+        Admin_ClientDeleteConfirm,
+        Admin_Gallery_WaitPhoto
     }
 
     public class UserSession
@@ -53,5 +54,6 @@ namespace TelegramBot.State
         public Guid? TargetSlotId { get; set; }
         public int? ReviewDraftRating { get; set; }
         public List<Guid> CachedReviewableAppointmentIds { get; set; } = new();
+        public List<Guid> CachedGalleryPhotoIds { get; set; } = new();
     }
 }

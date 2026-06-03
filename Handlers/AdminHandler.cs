@@ -93,6 +93,11 @@ namespace TelegramBot.Handlers
                     await SendMasterMenuFooterAsync(botClient, chatId, ct);
                     break;
 
+                case "галерея":
+                    await GalleryAdminFlow.ShowMenuAsync(botClient, chatId, ct);
+                    await SendMasterMenuFooterAsync(botClient, chatId, ct);
+                    break;
+
                 case "все отзывы":
                 case "отзывы":
                     var reviews = await ReviewService.GetAllAsync();

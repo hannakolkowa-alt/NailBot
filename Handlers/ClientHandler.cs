@@ -19,7 +19,6 @@ namespace TelegramBot.Handlers
                     await ClientMenuFooter.SendAsync(botClient, chatId, userId, ct);
                     break;
 
-                case "галерея":
                 case "о мастере":
                     var profile = await MasterService.GetMasterProfileAsync();
                     if (profile == null)
@@ -30,17 +29,11 @@ namespace TelegramBot.Handlers
                     var nick = string.IsNullOrEmpty(profile.TelegramUsername) ? "" : $"@{profile.TelegramUsername.TrimStart('@')}";
                     var info = $"✨ О мастере\n\nИмя: {profile.Name}\nНик: {nick}\nОпыт: {profile.Experience}\n\n{profile.Description}";
                     await botClient.SendMessage(chatId, info, replyMarkup: kb, cancellationToken: ct);
+                    break;
 
-                    var master = profile;
-                    var photos = await GalleryService.GetMasterPhotosAsync(master.MasterId);
-                    foreach (var photo in photos.Take(5))
-                    {
-                        if (!string.IsNullOrEmpty(photo.PhotoUrl))
-                        {
-                            try { await botClient.SendPhoto(chatId, photo.PhotoUrl, cancellationToken: ct); }
-                            catch { await botClient.SendMessage(chatId, $"🖼 {photo.Description ?? photo.PhotoUrl}", cancellationToken: ct); }
-                        }
-                    }
+                case "портфолио мастера":
+                case "партфолио мастера":
+                    await GalleryAdminFlow.ShowPortfolioForClientAsync(botClient, chatId, userId, ct);
                     break;
 
                 case "прайс":
