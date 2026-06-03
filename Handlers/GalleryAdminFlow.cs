@@ -33,6 +33,9 @@ namespace TelegramBot.Handlers
 
             await bot.SendMessage(chatId, $"🖼 Галерея (портфолио для клиентов)\n{countLine}", cancellationToken: ct);
 
+            if (photos.Count > 0)
+                await SendGalleryPreviewAsync(bot, chatId, photos, ct);
+
             var kb = new InlineKeyboardMarkup(new[]
             {
                 new[] { InlineKeyboardButton.WithCallbackData("➕ Добавить фото", "gal_add") },
@@ -151,6 +154,38 @@ namespace TelegramBot.Handlers
             await bot.SendMessage(chatId, $"🖼 Портфолио мастера ({photos.Count} фото):", cancellationToken: ct);
             await GalleryPhotoSender.SendManyAsync(bot, chatId, photos.Select(p => p.PhotoUrl), ct);
             await bot.SendMessage(chatId, "Выберите пункт меню 👇", replyMarkup: kb, cancellationToken: ct);
+        }
+
+        private static async Task SendGalleryPreviewAsync(
+            ITelegramBotClient bot,
+            long chatId,
+            IReadOnlyList<Models.Gallery> photos,
+            CancellationToken ct)
+        {
+            for (var i = 0; i < photos.Count; i++)
+            {
+                var photo = photos[i];
+                if (string.IsNullOrWhiteSpace(photo.PhotoUrl))
+                    continue;
+
+                var caption = $"Фото {i + 1} из {photos.Count}";
+                try
+                {
+                    if (photo.PhotoUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                        || photo.PhotoUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await bot.SendPhoto(chatId, photo.PhotoUrl, caption: caption, cancellationToken: ct);
+                    }
+                    else
+                    {
+                        await bot.SendPhoto(chatId, InputFile.FromFileId(photo.PhotoUrl), caption: caption, cancellationToken: ct);
+                    }
+                }
+                catch
+                {
+                    await bot.SendMessage(chatId, $"🖼 {caption} — не удалось показать.", cancellationToken: ct);
+                }
+            }
         }
     }
 }
