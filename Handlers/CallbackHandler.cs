@@ -312,7 +312,7 @@ namespace TelegramBot.Handlers
                     await bot.SendMessage(chatId, "Запись не найдена. Откройте «Мои записи» снова.", cancellationToken: ct);
                     return;
                 }
-                await ReviewFlow.BeginReviewAsync(bot, chatId, session.CachedReviewableAppointmentIds[revStartIdx], ct);
+                await ReviewFlow.BeginReviewAsync(bot, chatId, userId, session.CachedReviewableAppointmentIds[revStartIdx], ct);
                 return;
             }
 
@@ -326,7 +326,7 @@ namespace TelegramBot.Handlers
             {
                 SessionStore.Reset(chatId);
                 await bot.SendMessage(chatId, "Отзыв отменён.",
-                    replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)),
+                    replyMarkup: Keyboards.GetMenuForUser(chatId, userId),
                     cancellationToken: ct);
                 return;
             }
@@ -439,7 +439,7 @@ namespace TelegramBot.Handlers
             {
                 try
                 {
-                    await ReviewFlow.BeginReviewAsync(bot, client.TelegramId, appointmentId, ct);
+                    await ReviewFlow.BeginReviewAsync(bot, client.TelegramId, client.TelegramId, appointmentId, ct);
                 }
                 catch { }
             }

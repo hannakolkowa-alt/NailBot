@@ -23,7 +23,7 @@ namespace TelegramBot.Helpers
                     ? "⚠️ Ошибка таблицы time_slots.\nВ Supabase SQL Editor выполните supabase_fix_time_slots.sql"
                     : $"⚠️ {Truncate(ex.Message, 350)}";
 
-                await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                await bot.SendMessage(chatId, msg, replyMarkup: Keyboards.GetMenuForUser(chatId, chatId), cancellationToken: ct);
             }
             catch { }
         }

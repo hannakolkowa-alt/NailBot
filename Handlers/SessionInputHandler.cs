@@ -18,9 +18,7 @@ namespace TelegramBot.Handlers
             if (IsScheduleCancel(text))
             {
                 SessionStore.Reset(chatId);
-                var kb = actAsMaster
-                    ? Keyboards.CreateAdminMenuKeyboard()
-                    : Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId));
+                var kb = Keyboards.GetMenuForUser(chatId, userId);
                 await bot.SendMessage(chatId, "Ввод отменён. /master | /client — смена роли.", replyMarkup: kb, cancellationToken: ct);
                 return true;
             }
@@ -53,7 +51,7 @@ namespace TelegramBot.Handlers
                         catch { }
                     }
                     SessionStore.Reset(chatId);
-                    await bot.SendMessage(chatId, "Запись отменена.", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
+                    await bot.SendMessage(chatId, "Запись отменена.", replyMarkup: Keyboards.GetMenuForUser(chatId, userId), cancellationToken: ct);
                     return true;
 
                 case SessionState.Review_EnterText:

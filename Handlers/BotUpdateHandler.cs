@@ -25,7 +25,7 @@ namespace TelegramBot.Handlers
                 long userId = message.From?.Id ?? chatId;
                 var isMasterAccount = RoleHelper.IsMasterAccount(userId);
                 var actAsMaster = RoleHelper.ActAsMaster(chatId, userId);
-                var normalized = MenuTexts.Normalize(text);
+                var normalized = MenuRouter.NormalizeForProfile(text, actAsMaster);
 
                 Console.WriteLine($"Получено от {chatId}: {text} (роль: {RoleHelper.RoleLabel(chatId, userId)})");
 
@@ -53,23 +53,31 @@ namespace TelegramBot.Handlers
                     if (!keepScheduleSession && !keepReviewSession)
                         SessionStore.Reset(chatId);
 
-                    if (actAsMaster && MenuTexts.IsClientOnlyButton(normalized))
+                    if (MenuRouter.ShouldUseAdminHandler(normalized, actAsMaster, isMasterAccount))
+                    {
+                        await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
+                        return;
+                    }
+
+                    if (MenuRouter.ShouldUseClientHandler(normalized, actAsMaster, isMasterAccount))
                     {
                         await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
                         return;
                     }
 
-                    if (actAsMaster)
-                        await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
-                    else
-                        await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);
+                    await botClient.SendMessage(chatId,
+                        actAsMaster
+                            ? "Эта кнопка из клиентского меню. Для клиента: «🧪 Клиент» или /client"
+                            : "Эта кнопка из меню мастера. Для мастера: «👩‍🎨 Мастер» или /master",
+                        replyMarkup: Keyboards.GetMenuForUser(chatId, userId),
+                        cancellationToken: ct);
                     return;
                 }
 
                 if (await SessionInputHandler.TryHandleAsync(botClient, chatId, userId, text, actAsMaster, ct))
                     return;
 
-                if (actAsMaster)
+                if (isMasterAccount && actAsMaster)
                     await AdminHandler.HandleAsync(botClient, chatId, normalized, ct);
                 else
                     await ClientHandler.HandleAsync(botClient, chatId, userId, normalized, ct);

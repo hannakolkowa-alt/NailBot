@@ -24,9 +24,7 @@ namespace TelegramBot.Handlers
             }
 
             var actAsMaster = RoleHelper.ActAsMaster(chatId, userId);
-            var keyboard = actAsMaster
-                ? Keyboards.CreateAdminMenuKeyboard()
-                : Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId));
+            var keyboard = Keyboards.GetMenuForUser(chatId, userId);
 
             switch (command)
             {

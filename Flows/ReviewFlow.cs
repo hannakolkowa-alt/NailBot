@@ -9,13 +9,13 @@ namespace TelegramBot.Flows
 {
     public static class ReviewFlow
     {
-        public static async Task BeginReviewAsync(ITelegramBotClient bot, long chatId, Guid appointmentId, CancellationToken ct)
+        public static async Task BeginReviewAsync(ITelegramBotClient bot, long chatId, long userId, Guid appointmentId, CancellationToken ct)
         {
             if (await ReviewService.HasReviewForAppointmentAsync(appointmentId))
             {
                 await bot.SendMessage(chatId,
                     "Вы уже оставили отзыв на этот визит.",
-                    replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(chatId)),
+                    replyMarkup: Keyboards.GetMenuForUser(chatId, userId),
                     cancellationToken: ct);
                 return;
             }
@@ -95,14 +95,14 @@ namespace TelegramBot.Flows
             {
                 var err = ReviewService.GetClientErrorMessage(ReviewService.LastAddError);
                 await bot.SendMessage(chatId, err,
-                    replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)),
+                    replyMarkup: Keyboards.GetMenuForUser(chatId, userId),
                     cancellationToken: ct);
                 return true;
             }
 
             await bot.SendMessage(chatId,
                 $"Спасибо за отзыв!\n{starsLine}",
-                replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)),
+                replyMarkup: Keyboards.GetMenuForUser(chatId, userId),
                 cancellationToken: ct);
 
             try
@@ -121,11 +121,10 @@ namespace TelegramBot.Flows
         {
             var reviews = await ReviewService.GetAllAsync();
             var clients = await ClientService.GetAllClientsAsync();
-            var kb = Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId));
-
             if (!reviews.Any())
             {
-                await bot.SendMessage(chatId, "Пока нет отзывов. Будьте первым после визита!", replyMarkup: kb, cancellationToken: ct);
+                await bot.SendMessage(chatId, "Пока нет отзывов. Будьте первым после визита!", cancellationToken: ct);
+                await ClientMenuFooter.SendAsync(bot, chatId, userId, ct);
                 return;
             }
 
@@ -138,9 +137,9 @@ namespace TelegramBot.Flows
             }
 
             if (reviews.Count > 20)
-                await bot.SendMessage(chatId, $"… и ещё {reviews.Count - 20} отзывов.", replyMarkup: kb, cancellationToken: ct);
-            else
-                await bot.SendMessage(chatId, "Главное меню 👇", replyMarkup: kb, cancellationToken: ct);
+                await bot.SendMessage(chatId, $"… и ещё {reviews.Count - 20} отзывов.", cancellationToken: ct);
+
+            await ClientMenuFooter.SendAsync(bot, chatId, userId, ct);
         }
 
         public static InlineKeyboardMarkup CreateStarsKeyboard() =>

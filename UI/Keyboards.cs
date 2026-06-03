@@ -1,9 +1,16 @@
 ﻿using Telegram.Bot.Types.ReplyMarkups;
+using TelegramBot.Helpers;
 
 namespace TelegramBot.UI
 {
     public static class Keyboards
     {
+        /// <summary>Клавиатура по текущему режиму (мастер / клиент), не по аккаунту.</summary>
+        public static ReplyKeyboardMarkup GetMenuForUser(long chatId, long userId) =>
+            RoleHelper.ActAsMaster(chatId, userId)
+                ? CreateAdminMenuKeyboard()
+                : CreateMainMenuKeyboard(showMasterSwitch: RoleHelper.IsMasterAccount(userId));
+
         public static ReplyKeyboardMarkup CreateMainMenuKeyboard(bool showMasterSwitch = false)
         {
             var rows = new List<KeyboardButton[]>
@@ -11,7 +18,7 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("О мастере") },
                 new[] { new KeyboardButton("Услуги") },
                 new[] { new KeyboardButton("Расписание") },
-                new[] { new KeyboardButton("Записи") },
+                new[] { new KeyboardButton("Мои записи") },
                 new[] { new KeyboardButton("Отзывы") },
                 new[] { new KeyboardButton("◀️ Меню") }
             };
@@ -28,7 +35,7 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("Записи"), new KeyboardButton("Заявки") },
                 new[] { new KeyboardButton("Мой профиль"), new KeyboardButton("Изменить профиль") },
                 new[] { new KeyboardButton("Услуги"), new KeyboardButton("Расписание") },
-                new[] { new KeyboardButton("Отзывы") },
+                new[] { new KeyboardButton("Все отзывы") },
                 new[] { new KeyboardButton("🧪 Клиент") },
                 new[] { new KeyboardButton("◀️ Меню") }
             })

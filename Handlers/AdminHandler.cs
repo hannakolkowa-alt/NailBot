@@ -17,10 +17,7 @@ namespace TelegramBot.Handlers
             {
                 case "◀️ меню":
                     SessionStore.Reset(chatId);
-                    await botClient.SendMessage(chatId,
-                        "Меню мастера 👇\n🧪 Клиент или /client — тест как клиент",
-                        replyMarkup: kb,
-                        cancellationToken: ct);
+                    await botClient.SendMessage(chatId, "Меню мастера 👇", replyMarkup: kb, cancellationToken: ct);
                     break;
 
                 case "клиентская база":
@@ -44,10 +41,12 @@ namespace TelegramBot.Handlers
 
                 case "записи":
                     await ShowAppointmentsAsync(botClient, chatId, ct);
+                    await SendMasterMenuFooterAsync(botClient, chatId, ct);
                     break;
 
                 case "заявки":
                     await ShowPendingRequestsAsync(botClient, chatId, ct);
+                    await SendMasterMenuFooterAsync(botClient, chatId, ct);
                     break;
 
                 case "мой профиль":
@@ -85,13 +84,16 @@ namespace TelegramBot.Handlers
 
                 case "услуги":
                     await ServicesAdminFlow.ShowMenuAsync(botClient, chatId, ct);
+                    await SendMasterMenuFooterAsync(botClient, chatId, ct);
                     break;
 
                 case "расписание":
                 case "график":
                     await ScheduleAdminFlow.ShowCalendarAsync(botClient, chatId, ct: ct);
+                    await SendMasterMenuFooterAsync(botClient, chatId, ct);
                     break;
 
+                case "все отзывы":
                 case "отзывы":
                     var reviews = await ReviewService.GetAllAsync();
                     var clientsAll = await ClientService.GetAllClientsAsync();
@@ -100,6 +102,7 @@ namespace TelegramBot.Handlers
                         await botClient.SendMessage(chatId, "Отзывов пока нет.", replyMarkup: kb, cancellationToken: ct);
                         break;
                     }
+                    await botClient.SendMessage(chatId, $"⭐ Отзывы клиентов ({reviews.Count}):", cancellationToken: ct);
                     foreach (var rev in reviews)
                     {
                         var cl = clientsAll.FirstOrDefault(c => c.ClientId == rev.ClientId);
@@ -108,6 +111,7 @@ namespace TelegramBot.Handlers
                         var body = string.IsNullOrWhiteSpace(rev.Text) ? "(без комментария)" : rev.Text;
                         await botClient.SendMessage(chatId, $"{stars} {un}:\n{body}", cancellationToken: ct);
                     }
+                    await SendMasterMenuFooterAsync(botClient, chatId, ct);
                     break;
 
                 default:
@@ -189,7 +193,14 @@ namespace TelegramBot.Handlers
                 return;
             }
 
-            await bot.SendMessage(chatId, "Активных записей нет.", replyMarkup: Keyboards.CreateAdminMenuKeyboard(), cancellationToken: ct);
+            await bot.SendMessage(chatId, "Активных записей нет.", cancellationToken: ct);
+        }
+
+        private static async Task SendMasterMenuFooterAsync(ITelegramBotClient bot, long chatId, CancellationToken ct)
+        {
+            await bot.SendMessage(chatId, "Меню мастера 👇",
+                replyMarkup: Keyboards.CreateAdminMenuKeyboard(),
+                cancellationToken: ct);
         }
     }
 }

@@ -11,12 +11,12 @@ namespace TelegramBot.Handlers
     {
         public static async Task HandleAsync(ITelegramBotClient botClient, long chatId, long userId, string text, CancellationToken ct)
         {
-            var kb = Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId));
+            var kb = Keyboards.GetMenuForUser(chatId, userId);
 
             switch (text)
             {
                 case "◀️ меню":
-                    await botClient.SendMessage(chatId, "Главное меню 👇", replyMarkup: kb, cancellationToken: ct);
+                    await ClientMenuFooter.SendAsync(botClient, chatId, userId, ct);
                     break;
 
                 case "галерея":
@@ -61,7 +61,6 @@ namespace TelegramBot.Handlers
                     break;
 
                 case "мои записи":
-                case "записи":
                     await ShowClientRecordsAsync(botClient, chatId, userId, ct);
                     break;
 
@@ -90,7 +89,7 @@ namespace TelegramBot.Handlers
 
             if (!requests.Any() && !activeAppts.Any() && !completedAppts.Any())
             {
-                await bot.SendMessage(chatId, "У вас нет записей.", replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)), cancellationToken: ct);
+                await bot.SendMessage(chatId, "У вас нет записей.", replyMarkup: Keyboards.GetMenuForUser(chatId, userId), cancellationToken: ct);
                 return;
             }
 
@@ -157,9 +156,7 @@ namespace TelegramBot.Handlers
                     cancellationToken: ct);
             }
 
-            await bot.SendMessage(chatId, "Главное меню 👇",
-                replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)),
-                cancellationToken: ct);
+            await ClientMenuFooter.SendAsync(bot, chatId, userId, ct);
         }
     }
 }
