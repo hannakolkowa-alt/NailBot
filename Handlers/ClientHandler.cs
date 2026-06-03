@@ -28,7 +28,8 @@ namespace TelegramBot.Handlers
                         break;
                     }
                     var nick = string.IsNullOrEmpty(profile.TelegramUsername) ? "" : $"@{profile.TelegramUsername.TrimStart('@')}";
-                    var info = $"✨ О мастере\n\nИмя: {profile.Name}\nНик: {nick}\nОпыт: {profile.Experience}\n\n{profile.Description}";
+                    var ratingLine = await ReviewService.GetRatingLineForProfileAsync();
+                    var info = $"✨ О мастере\n\nИмя: {profile.Name}\nНик: {nick}\n{ratingLine}\nОпыт: {profile.Experience}\n\n{profile.Description}";
                     await botClient.SendMessage(chatId, info, replyMarkup: kb, cancellationToken: ct);
                     break;
 

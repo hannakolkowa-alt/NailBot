@@ -1,3 +1,4 @@
+using System.Globalization;
 using TelegramBot.Models;
 
 namespace TelegramBot.Services
@@ -5,6 +6,46 @@ namespace TelegramBot.Services
     public static class ReviewService
     {
         public static string? LastAddError { get; set; }
+
+        /// <summary>Средняя оценка (1–5) и число отзывов с полем rating.</summary>
+        public static async Task<(double? Average, int Count)> GetAverageRatingAsync()
+        {
+            var reviews = await GetAllAsync();
+            var ratings = reviews
+                .Where(r => r.Rating is >= 1 and <= 5)
+                .Select(r => r.Rating!.Value)
+                .ToList();
+
+            if (ratings.Count == 0)
+                return (null, 0);
+
+            return (ratings.Average(), ratings.Count);
+        }
+
+        public static string FormatAverageRatingForProfile(double? average, int reviewCount)
+        {
+            if (!average.HasValue || reviewCount == 0)
+                return "Рейтинг: пока нет оценок";
+
+            var score = Math.Round(average.Value, 1, MidpointRounding.AwayFromZero);
+            var scoreText = score.ToString("0.0", CultureInfo.InvariantCulture).Replace('.', ',');
+            return $"Рейтинг: ⭐ {scoreText} из 5 ({reviewCount} {ReviewCountLabel(reviewCount)})";
+        }
+
+        public static async Task<string> GetRatingLineForProfileAsync()
+        {
+            var (avg, count) = await GetAverageRatingAsync();
+            return FormatAverageRatingForProfile(avg, count);
+        }
+
+        private static string ReviewCountLabel(int count)
+        {
+            var n = Math.Abs(count) % 100;
+            var n1 = n % 10;
+            if (n1 == 1 && n != 11) return "отзыв";
+            if (n1 is >= 2 and <= 4 && n is not (>= 12 and <= 14)) return "отзыва";
+            return "отзывов";
+        }
 
         public static string FormatStars(int? rating)
         {
