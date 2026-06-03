@@ -25,6 +25,24 @@ namespace TelegramBot.Services
                 .ToList();
         }
 
+        public static async Task<List<Appointment>> GetCompletedByClientTelegramIdAsync(long telegramId)
+        {
+            var client = await ClientService.GetByTelegramIdAsync(telegramId);
+            if (client == null) return new List<Appointment>();
+
+            var res = await SupabaseConfig.GetClient().From<Appointment>().Get();
+            return (res.Models ?? new List<Appointment>())
+                .Where(a => a.ClientId == client.ClientId && IsCompletedStatus(a.Status))
+                .OrderByDescending(a => a.AppointmentId)
+                .ToList();
+        }
+
+        public static async Task<Appointment?> GetByIdAsync(Guid appointmentId)
+        {
+            var res = await SupabaseConfig.GetClient().From<Appointment>().Get();
+            return res.Models?.FirstOrDefault(a => a.AppointmentId == appointmentId);
+        }
+
         public static async Task<Appointment?> CreateFromRequestAsync(Request request, Guid masterId, Guid workingDateId, Guid timeSlotId)
         {
             foreach (var status in new[] { AppointmentStatus.Confirmed, "confirmed", "CONFIRMED", "active" })
@@ -92,6 +110,12 @@ namespace TelegramBot.Services
         {
             var s = (status ?? "").Trim().ToLowerInvariant();
             return s is "confirmed" or "active" or "pending" or "approved";
+        }
+
+        private static bool IsCompletedStatus(string? status)
+        {
+            var s = (status ?? "").Trim().ToLowerInvariant();
+            return s is "completed";
         }
     }
 }

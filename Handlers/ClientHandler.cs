@@ -56,6 +56,10 @@ namespace TelegramBot.Handlers
                     await botClient.SendMessage(chatId, schedule, replyMarkup: kb, cancellationToken: ct);
                     break;
 
+                case "отзывы":
+                    await ReviewFlow.ShowPublicReviewsAsync(botClient, chatId, userId, ct);
+                    break;
+
                 case "мои записи":
                 case "записи":
                     await ShowClientRecordsAsync(botClient, chatId, userId, ct);
@@ -70,25 +74,27 @@ namespace TelegramBot.Handlers
         private static async Task ShowClientRecordsAsync(ITelegramBotClient bot, long chatId, long userId, CancellationToken ct)
         {
             var requests = await RequestService.GetByClientTelegramIdAsync(userId);
-            var appts = await AppointmentService.GetByClientTelegramIdAsync(userId);
+            var activeAppts = await AppointmentService.GetByClientTelegramIdAsync(userId);
+            var completedAppts = await AppointmentService.GetCompletedByClientTelegramIdAsync(userId);
+            var allRequests = await SupabaseConfig.GetClient().From<Models.Request>().Get();
             var session = State.SessionStore.GetOrCreate(chatId);
             session.CachedRequestIds = requests.Select(r => r.RequestId).ToList();
 
-            if (!requests.Any() && !appts.Any())
+            var reviewable = new List<Models.Appointment>();
+            foreach (var apt in completedAppts)
             {
-                await bot.SendMessage(chatId, "У вас нет активных записей.", replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)), cancellationToken: ct);
+                if (!await ReviewService.HasReviewForAppointmentAsync(apt.AppointmentId))
+                    reviewable.Add(apt);
+            }
+            session.CachedReviewableAppointmentIds = reviewable.Select(a => a.AppointmentId).ToList();
+
+            if (!requests.Any() && !activeAppts.Any() && !completedAppts.Any())
+            {
+                await bot.SendMessage(chatId, "У вас нет записей.", replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)), cancellationToken: ct);
                 return;
             }
 
-            if (!requests.Any() && appts.Any())
-            {
-                await bot.SendMessage(chatId, "📋 Ваши записи:", cancellationToken: ct);
-                foreach (var apt in appts)
-                {
-                    await bot.SendMessage(chatId, $"✅ Запись подтверждена (ID: {apt.AppointmentId:N})", cancellationToken: ct);
-                }
-                return;
-            }
+            await bot.SendMessage(chatId, "📋 Мои записи:", cancellationToken: ct);
 
             foreach (var (req, i) in requests.Select((r, idx) => (r, idx)))
             {
@@ -106,6 +112,54 @@ namespace TelegramBot.Handlers
                 };
                 await bot.SendMessage(chatId, msg, replyMarkup: new InlineKeyboardMarkup(rows), cancellationToken: ct);
             }
+
+            foreach (var (apt, ri) in completedAppts.Select((a, idx) => (a, idx)))
+            {
+                var req = allRequests.Models?.FirstOrDefault(r => r.RequestId == apt.RequestId);
+                var services = req != null
+                    ? await CatalogService.GetRequestServicesAsync(req.RequestId)
+                    : new List<Models.Service>();
+                var svcNames = services.Any() ? string.Join(", ", services.Select(s => s.Name)) : "—";
+                var dateStr = req?.DesiredDate != null
+                    ? $"{req.DesiredDate:dd.MM.yyyy} {req.DesiredTime:HH:mm}"
+                    : "дата уточняется";
+
+                var hasReview = await ReviewService.HasReviewForAppointmentAsync(apt.AppointmentId);
+                var statusLine = hasReview ? "✅ Выполнено · отзыв оставлен" : "✅ Выполнено";
+
+                await bot.SendMessage(chatId,
+                    $"📋 Визит\n{statusLine}\nУслуги: {svcNames}\nДата: {dateStr}",
+                    cancellationToken: ct);
+
+                if (!hasReview)
+                {
+                    var revIdx = session.CachedReviewableAppointmentIds.IndexOf(apt.AppointmentId);
+                    if (revIdx >= 0)
+                    {
+                        await bot.SendMessage(chatId, "Оцените визит:",
+                            replyMarkup: new InlineKeyboardMarkup(new[]
+                            {
+                                new[] { InlineKeyboardButton.WithCallbackData("⭐ Оставить отзыв", $"rev_start:{revIdx}") }
+                            }),
+                            cancellationToken: ct);
+                    }
+                }
+            }
+
+            foreach (var apt in activeAppts.Where(a => !completedAppts.Any(c => c.AppointmentId == a.AppointmentId)))
+            {
+                var req = allRequests.Models?.FirstOrDefault(r => r.RequestId == apt.RequestId);
+                var services = req != null
+                    ? await CatalogService.GetRequestServicesAsync(req.RequestId)
+                    : new List<Models.Service>();
+                await bot.SendMessage(chatId,
+                    $"📋 Подтверждено\nУслуги: {string.Join(", ", services.Select(s => s.Name))}\nДата: {req?.DesiredDate:dd.MM.yyyy} {req?.DesiredTime:HH:mm}",
+                    cancellationToken: ct);
+            }
+
+            await bot.SendMessage(chatId, "Главное меню 👇",
+                replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)),
+                cancellationToken: ct);
         }
     }
 }

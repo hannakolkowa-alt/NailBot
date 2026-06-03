@@ -57,15 +57,7 @@ namespace TelegramBot.Handlers
                     return true;
 
                 case SessionState.Review_EnterText:
-                    var client = await ClientService.GetOrCreateAsync(userId, null, null);
-                    await ReviewService.AddAsync(client.ClientId, session.TargetAppointmentId, text);
-                    SessionStore.Reset(chatId);
-                    await bot.SendMessage(chatId, "Спасибо за отзыв! ⭐", replyMarkup: Keyboards.CreateMainMenuKeyboard(), cancellationToken: ct);
-                    try
-                    {
-                        await bot.SendMessage(BotConfig.PrimaryMasterTelegramId, $"⭐ Новый отзыв от @{client.TelegramUsername}:\n{text}", cancellationToken: ct);
-                    }
-                    catch { }
+                    await ReviewFlow.SaveReviewTextAsync(bot, chatId, userId, text, ct);
                     return true;
 
                 case SessionState.Admin_RejectReason:

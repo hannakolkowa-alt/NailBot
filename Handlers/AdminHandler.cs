@@ -104,7 +104,9 @@ namespace TelegramBot.Handlers
                     {
                         var cl = clientsAll.FirstOrDefault(c => c.ClientId == rev.ClientId);
                         var un = cl != null ? $"@{cl.TelegramUsername}" : "клиент";
-                        await botClient.SendMessage(chatId, $"⭐ {un}:\n{rev.Text}", cancellationToken: ct);
+                        var stars = ReviewService.FormatStars(rev.Rating);
+                        var body = string.IsNullOrWhiteSpace(rev.Text) ? "(без комментария)" : rev.Text;
+                        await botClient.SendMessage(chatId, $"{stars} {un}:\n{body}", cancellationToken: ct);
                     }
                     break;
 

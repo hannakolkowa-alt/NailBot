@@ -12,6 +12,7 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("Услуги") },
                 new[] { new KeyboardButton("Расписание") },
                 new[] { new KeyboardButton("Записи") },
+                new[] { new KeyboardButton("Отзывы") },
                 new[] { new KeyboardButton("◀️ Меню") }
             };
             if (showMasterSwitch)

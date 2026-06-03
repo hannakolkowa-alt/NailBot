@@ -48,7 +48,9 @@ namespace TelegramBot.Handlers
                         && (normalized is "расписание" or "график")
                         && session.State is SessionState.Admin_Schedule_CustomTime or SessionState.Admin_Schedule_EditTime;
 
-                    if (!keepScheduleSession)
+                    var keepReviewSession = session.State is SessionState.Review_SelectStars or SessionState.Review_EnterText;
+
+                    if (!keepScheduleSession && !keepReviewSession)
                         SessionStore.Reset(chatId);
 
                     if (actAsMaster && MenuTexts.IsClientOnlyButton(normalized))

@@ -304,6 +304,32 @@ namespace TelegramBot.Handlers
                 await ScheduleAdminFlow.DeleteDayAsync(bot, chatId, ct);
                 return;
             }
+
+            if (data.StartsWith("rev_start:") && int.TryParse(data[10..], out var revStartIdx))
+            {
+                if (revStartIdx < 0 || revStartIdx >= session.CachedReviewableAppointmentIds.Count)
+                {
+                    await bot.SendMessage(chatId, "Запись не найдена. Откройте «Мои записи» снова.", cancellationToken: ct);
+                    return;
+                }
+                await ReviewFlow.BeginReviewAsync(bot, chatId, session.CachedReviewableAppointmentIds[revStartIdx], ct);
+                return;
+            }
+
+            if (data.StartsWith("rev_star:") && int.TryParse(data[9..], out var starN) && starN is >= 1 and <= 5)
+            {
+                await ReviewFlow.OnStarSelectedAsync(bot, chatId, starN, ct);
+                return;
+            }
+
+            if (data == "rev_cancel")
+            {
+                SessionStore.Reset(chatId);
+                await bot.SendMessage(chatId, "Отзыв отменён.",
+                    replyMarkup: Keyboards.CreateMainMenuKeyboard(RoleHelper.IsMasterAccount(userId)),
+                    cancellationToken: ct);
+                return;
+            }
         }
 
         private static async Task StaleCallbackAsync(ITelegramBotClient bot, long chatId, CancellationToken ct)
@@ -413,12 +439,7 @@ namespace TelegramBot.Handlers
             {
                 try
                 {
-                    await bot.SendMessage(client.TelegramId,
-                        "💅 Работа выполнена! Пожалуйста, оставьте отзыв — напишите текст сообщением.",
-                        cancellationToken: ct);
-                    var s = SessionStore.GetOrCreate(client.TelegramId);
-                    s.State = SessionState.Review_EnterText;
-                    s.TargetAppointmentId = appointmentId;
+                    await ReviewFlow.BeginReviewAsync(bot, client.TelegramId, appointmentId, ct);
                 }
                 catch { }
             }

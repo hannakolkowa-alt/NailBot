@@ -1,10 +1,5 @@
 ﻿using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace TelegramBot.Models
 {
@@ -20,7 +15,10 @@ namespace TelegramBot.Models
         [Column("appointment_id")]
         public Guid? AppointmentId { get; set; }
 
+        [Column("rating")]
+        public int? Rating { get; set; }
+
         [Column("text")]
-        public string Text { get; set; }
+        public string Text { get; set; } = "";
     }
 }

@@ -6,6 +6,7 @@ namespace TelegramBot.State
         Booking_EnterName,
         Booking_EnterUsername,
         Cancel_EnterReason,
+        Review_SelectStars,
         Review_EnterText,
         Admin_Profile_Name,
         Admin_Profile_Username,
@@ -50,5 +51,7 @@ namespace TelegramBot.State
         public int ScheduleCalendarYear { get; set; }
         public int ScheduleCalendarMonth { get; set; }
         public Guid? TargetSlotId { get; set; }
+        public int? ReviewDraftRating { get; set; }
+        public List<Guid> CachedReviewableAppointmentIds { get; set; } = new();
     }
 }
