@@ -45,9 +45,6 @@ namespace TelegramBot.Handlers
                     return;
                 }
 
-                if (await RoleSwitchHandler.TryHandleAsync(botClient, chatId, userId, normalized, ct))
-                    return;
-
                 if (MenuTexts.IsMenuButton(normalized))
                 {
                     var session = SessionStore.GetOrCreate(chatId);
@@ -77,8 +74,8 @@ namespace TelegramBot.Handlers
 
                     await botClient.SendMessage(chatId,
                         actAsMaster
-                            ? "Эта кнопка из клиентского меню. Для клиента: «🧪 Клиент» или /client"
-                            : "Эта кнопка из меню мастера. Для мастера: «👩‍🎨 Мастер» или /master",
+                            ? "Эта кнопка доступна в клиентском меню."
+                            : "Эта кнопка доступна в меню мастера.",
                         replyMarkup: Keyboards.GetMenuForUser(chatId, userId),
                         cancellationToken: ct);
                     return;

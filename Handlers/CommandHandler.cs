@@ -29,12 +29,10 @@ namespace TelegramBot.Handlers
             switch (command)
             {
                 case "/start":
-                    var greet = actAsMaster
-                        ? "Привет! 👩‍🎨 Режим мастера.\n🧪 Клиент — тест как клиент\n/client — то же"
-                        : RoleHelper.IsMasterAccount(userId)
-                            ? "Привет! 🧪 Режим клиента (тест).\n/master — панель мастера"
-                            : "Привет! Добро пожаловать в Nails Studio 💅";
-                    await botClient.SendMessage(chatId, greet, replyMarkup: keyboard, cancellationToken: ct);
+                    await botClient.SendMessage(chatId,
+                        "Привет! Добро пожаловать в Nails Studio 💅",
+                        replyMarkup: keyboard,
+                        cancellationToken: ct);
                     break;
 
                 case "/menu":
@@ -46,13 +44,13 @@ namespace TelegramBot.Handlers
 
                 case "/myid":
                     await botClient.SendMessage(chatId,
-                        $"Ваш Telegram ID: {userId}\nРоль сейчас: {RoleHelper.RoleLabel(chatId, userId)}\n\n/master — мастер | /client — тест клиента",
+                        $"Ваш Telegram ID: {userId}\nРоль сейчас: {RoleHelper.RoleLabel(chatId, userId)}",
                         cancellationToken: ct);
                     break;
 
                 default:
                     if (command.StartsWith('/'))
-                        await botClient.SendMessage(chatId, "Команды: /start /menu /master /client", replyMarkup: keyboard, cancellationToken: ct);
+                        await botClient.SendMessage(chatId, "Команды: /start /menu", replyMarkup: keyboard, cancellationToken: ct);
                     break;
             }
         }

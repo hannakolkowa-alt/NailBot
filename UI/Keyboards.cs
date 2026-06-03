@@ -9,11 +9,11 @@ namespace TelegramBot.UI
         public static ReplyKeyboardMarkup GetMenuForUser(long chatId, long userId) =>
             RoleHelper.ActAsMaster(chatId, userId)
                 ? CreateAdminMenuKeyboard()
-                : CreateMainMenuKeyboard(showMasterSwitch: RoleHelper.IsMasterAccount(userId));
+                : CreateMainMenuKeyboard();
 
-        public static ReplyKeyboardMarkup CreateMainMenuKeyboard(bool showMasterSwitch = false)
+        public static ReplyKeyboardMarkup CreateMainMenuKeyboard()
         {
-            var rows = new List<KeyboardButton[]>
+            return new ReplyKeyboardMarkup(new KeyboardButton[][]
             {
                 new[] { new KeyboardButton("О мастере") },
                 new[] { new KeyboardButton("Портфолио мастера") },
@@ -22,10 +22,8 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("Мои записи") },
                 new[] { new KeyboardButton("Отзывы") },
                 new[] { new KeyboardButton("◀️ Меню") }
-            };
-            if (showMasterSwitch)
-                rows.Add(new[] { new KeyboardButton("👩‍🎨 Мастер") });
-            return new ReplyKeyboardMarkup(rows) { ResizeKeyboard = true };
+            })
+            { ResizeKeyboard = true };
         }
 
         public static ReplyKeyboardMarkup CreateAdminMenuKeyboard()
@@ -38,7 +36,6 @@ namespace TelegramBot.UI
                 new[] { new KeyboardButton("Услуги"), new KeyboardButton("Расписание") },
                 new[] { new KeyboardButton("Галерея") },
                 new[] { new KeyboardButton("Все отзывы") },
-                new[] { new KeyboardButton("🧪 Клиент") },
                 new[] { new KeyboardButton("◀️ Меню") }
             })
             { ResizeKeyboard = true };

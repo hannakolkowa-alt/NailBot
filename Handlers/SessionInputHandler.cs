@@ -19,7 +19,7 @@ namespace TelegramBot.Handlers
             {
                 SessionStore.Reset(chatId);
                 var kb = Keyboards.GetMenuForUser(chatId, userId);
-                await bot.SendMessage(chatId, "Ввод отменён. /master | /client — смена роли.", replyMarkup: kb, cancellationToken: ct);
+                await bot.SendMessage(chatId, "Ввод отменён.", replyMarkup: kb, cancellationToken: ct);
                 return true;
             }
 

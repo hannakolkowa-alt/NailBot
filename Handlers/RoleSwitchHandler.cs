@@ -15,24 +15,24 @@ namespace TelegramBot.Handlers
 
             var normalized = MenuTexts.Normalize(text);
 
-            if (MenuTexts.MasterToClientSwitch.Contains(normalized) || normalized == "/client")
+            if (normalized == "/client")
             {
                 RoleHelper.SetClientMode(chatId);
                 SessionStore.Reset(chatId);
                 await bot.SendMessage(chatId,
-                    "🧪 Режим клиента (тест).\nЗапись, услуги, расписание — как у обычного клиента.\n\nВернуться: /master или кнопка «👩‍🎨 Мастер»",
-                    replyMarkup: Keyboards.CreateMainMenuKeyboard(showMasterSwitch: true),
+                    "Клиентское меню 👇",
+                    replyMarkup: Keyboards.CreateMainMenuKeyboard(),
                     cancellationToken: ct);
                 return true;
             }
 
-            if (MenuTexts.ClientToMasterSwitch.Contains(normalized) || normalized is "/master" or "/admin")
+            if (normalized is "/master" or "/admin")
             {
                 RoleHelper.SetMasterMode(chatId);
                 SessionStore.Reset(chatId);
                 await MasterService.EnsureMasterExistsAsync("Мастер", null);
                 await bot.SendMessage(chatId,
-                    "👩‍🎨 Режим мастера.\n\n/client или «🧪 Клиент» — снова тест как клиент.",
+                    "Меню мастера 👇",
                     replyMarkup: Keyboards.CreateAdminMenuKeyboard(),
                     cancellationToken: ct);
                 return true;

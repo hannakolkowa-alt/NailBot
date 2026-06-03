@@ -15,16 +15,6 @@ namespace TelegramBot.UI
             "услуги", "расписание", "галерея", "все отзывы", "отзывы", "◀️ меню"
         };
 
-        public static readonly HashSet<string> MasterToClientSwitch = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "🧪 клиент", "режим клиента", "/client"
-        };
-
-        public static readonly HashSet<string> ClientToMasterSwitch = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "👩‍🎨 мастер", "режим мастера", "/master", "/admin"
-        };
-
         public static readonly HashSet<string> CancelMenu = new(StringComparer.OrdinalIgnoreCase)
         {
             "отмена", "меню", "◀️ меню", "в меню", "/menu", "/start"
@@ -39,17 +29,10 @@ namespace TelegramBot.UI
         public static bool IsMenuButton(string text)
         {
             var t = Normalize(text);
-            return ClientMenu.Contains(t) || AdminMenu.Contains(t) || CancelMenu.Contains(t)
-                || MasterToClientSwitch.Contains(t) || ClientToMasterSwitch.Contains(t);
-        }
-
-        public static bool IsRoleSwitchButton(string text)
-        {
-            var t = Normalize(text);
-            return MasterToClientSwitch.Contains(t) || ClientToMasterSwitch.Contains(t);
+            return ClientMenu.Contains(t) || AdminMenu.Contains(t) || CancelMenu.Contains(t);
         }
 
         public static string Normalize(string text) => text.Trim().ToLowerInvariant();
     }
 }
-
+

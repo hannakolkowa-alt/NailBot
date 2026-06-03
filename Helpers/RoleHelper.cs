@@ -29,6 +29,6 @@ namespace TelegramBot.Helpers
         }
 
         public static string RoleLabel(long chatId, long userId) =>
-            ActAsMaster(chatId, userId) ? "мастер" : "клиент (тест)";
+            ActAsMaster(chatId, userId) ? "мастер" : "клиент";
     }
 }
