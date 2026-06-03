@@ -138,11 +138,12 @@ namespace TelegramBot.Flows
             var session = SessionStore.GetOrCreate(chatId);
             var b = session.Booking;
             var services = await CatalogService.FormatServiceListAsync(b.SelectedServiceIds);
+            var total = await CatalogService.GetTotalPriceAsync(b.SelectedServiceIds);
             var date = b.Date?.ToString("dd.MM.yyyy") ?? "—";
             var time = b.Time?.ToString("HH:mm") ?? "—";
             var nick = b.TelegramNick?.StartsWith('@') == true ? b.TelegramNick : $"@{b.TelegramNick}";
 
-            var text = $"Услуги: {services}.\nЗапись на дату {date} время {time}.\nДанные для связи: {b.ClientName} {nick}.\n\nЕсли всё верно, подтвердите заявку.";
+            var text = $"Услуги: {services}.\nЗапись на дату {date} время {time}.\nДанные для связи: {b.ClientName} {nick}.\nИтоговая сумма: {PriceFormat.Format(total)}.\n\nЕсли всё верно, подтвердите заявку.";
 
             await bot.SendMessage(chatId, text,
                 replyMarkup: Keyboards.ConfirmCancel("book:ok", "book:restart"),

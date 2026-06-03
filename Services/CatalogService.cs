@@ -103,6 +103,13 @@ namespace TelegramBot.Services
             return string.Join(", ", names);
         }
 
+        public static async Task<decimal> GetTotalPriceAsync(IEnumerable<Guid> serviceIds)
+        {
+            var ids = serviceIds.ToHashSet();
+            var all = await GetAllServicesAsync();
+            return all.Where(s => ids.Contains(s.ServiceId)).Sum(s => s.Price);
+        }
+
         public static async Task<Service?> AddServiceAsync(Guid categoryId, string name, string description, int duration, decimal price)
         {
             var svc = new Service
