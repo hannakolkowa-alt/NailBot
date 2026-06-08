@@ -507,16 +507,24 @@ namespace TelegramBot.Handlers
             if (apt == null) return;
 
             var client = (await ClientService.GetAllClientsAsync()).FirstOrDefault(c => c.ClientId == apt.ClientId);
-            if (client != null)
+            var reviewSent = false;
+            if (client != null && client.TelegramId != adminChatId)
             {
                 try
                 {
                     await ReviewFlow.BeginReviewAsync(bot, client.TelegramId, client.TelegramId, appointmentId, ct);
+                    reviewSent = true;
                 }
                 catch { }
             }
 
-            await bot.SendMessage(adminChatId, "Запись отмечена как выполненная. Клиенту отправлен запрос на отзыв.", cancellationToken: ct);
+            SessionStore.Reset(adminChatId);
+            var masterMsg = reviewSent
+                ? "Запись отмечена как выполненная. Клиенту отправлен запрос на отзыв."
+                : "Запись отмечена как выполненная.";
+            await bot.SendMessage(adminChatId, masterMsg,
+                replyMarkup: Keyboards.CreateAdminMenuKeyboard(),
+                cancellationToken: ct);
         }
 
         private static async Task MarkAppointmentNoShowAsync(ITelegramBotClient bot, long adminChatId, Guid appointmentId, CancellationToken ct)
